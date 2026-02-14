@@ -2,7 +2,7 @@
 const net = require('net');
 const {  CONSTANTS } = require('./constants');
 const setupSocket = require('./handlers/socket.handler');
-const startApiServer = require('./api/ApiServer');
+const startApiServer = require('./api');
 
 // ============================================================================
 // SERVER SETUP
@@ -47,13 +47,7 @@ function gracefulShutdown(signal) {
 
     server.close(() => {
         console.log('[SHUTDOWN] Server closed');
-        
-        // We can ask DeviceManager to destroy all sockets
-        const deviceManager = require('./services/deviceManagement.service');
-        // We can implement a cleanup method there or access map.
-        // For now, let's just exit. The OS will clean up sockets.
-        // But to be nice:
-        
+
         console.log('[SHUTDOWN] ✓ All connections closed');
         process.exit(0);
     });

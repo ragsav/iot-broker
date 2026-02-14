@@ -3,6 +3,7 @@ const Tft100Decoder = require('../protocols/tft100/decoder');
 const Tft100Encoder = require('../protocols/tft100/encoder');
 const { CONSTANTS } = require('../constants');
 const deviceManager = require('../services/deviceManagement.service');
+const IOTService = require('../services/iot.service');
 
 class PacketHandler {
     constructor() {
@@ -97,6 +98,11 @@ class PacketHandler {
 
         console.log('[QUEUE] Message to be processed:', JSON.stringify(payload, null, 2));
 
+        // Save telemetry to DB and update vehicle status via IOTService
+        if (decoded.records && decoded.records.length > 0) {
+            IOTService.handleTelemetry(socket.imei, decoded.records);
+        }
+
         // Send ACK (4-byte record count in big-endian)
         const ack = this.encoder.encodeDataResponse(decoded.count);
         socket.write(ack);
@@ -119,6 +125,13 @@ class PacketHandler {
             responseType: decoded.respType, // 5=Command, 6=Response
             data: decoded.data
         });
+
+        if (decoded.respType === 5 || decoded.respType === 6) { // Command or Response
+            IOTService.confirmCommandExecution({
+                imei: socket.imei,
+                command: decoded.data
+            });
+        }
     }
 }
 

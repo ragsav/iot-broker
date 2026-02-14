@@ -38,6 +38,26 @@ const CONSTANTS = {
             DATA: 0x02,
             RESPONSE: 0x03,
         }
+    },
+    IOT_COMMAND_TIMEOUT: 60, // seconds
+    ERROR_CODES: {
+        SERVER_ERROR: 'SERVER_ERROR'
+    },
+    IOT_COMMANDS: {
+        VEHICLE_START: {
+            command: "setdigout 1?",
+            response: ['DOUT1:1', 'DOUT1:Already set to 1']
+        },
+        VEHICLE_STOP: {
+            command: "setdigout 0?",
+            response: ['DOUT1:0', 'DOUT1:Already set to 0']
+        }
+    },
+    BOOKING_ACTIONS: {
+        INITIATE_START: 'INITIATE_START',
+        INITIATE_PAUSE: 'INITIATE_PAUSE',
+        INITIATE_RESUME: 'INITIATE_RESUME',
+        INITIATE_END: 'INITIATE_END'
     }
 }
 

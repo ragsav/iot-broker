@@ -2,13 +2,14 @@
 const express = require('express');
 const cors = require('cors');
 const deviceManager = require('../services/deviceManagement.service');
+const IOTService = require('../services/iot.service');
 const { CONSTANTS } = require('../constants');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/commands', (req, res) => {
+app.post('/api/commands', async (req, res) => {
     const { imei, command } = req.body;
 
     if (!imei || !command) {
@@ -20,7 +21,7 @@ app.post('/api/commands', (req, res) => {
         return res.status(404).json({ error: 'Device not connected' });
     }
 
-    const success = deviceManager.sendCommand(imei, command);
+    const success = await IOTService.sendCommand({ imei, command });
     if (success) {
         res.json({ success: true, message: 'Command sent' });
     } else {

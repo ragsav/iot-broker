@@ -88,7 +88,7 @@ class Tft100Decoder extends BaseDecoder {
         const angle = buffer.readUInt16BE(offset);
         offset += 2;
         const satellites = buffer.readUInt8(offset);
-        offset++;
+        offset += 1;
         const speed = buffer.readUInt16BE(offset);
         offset += 2;
 
@@ -144,13 +144,10 @@ class Tft100Decoder extends BaseDecoder {
             if (offset + this.getExtByteSize(codecId) + 8 > buffer.length) break;
             const id = this.readExtByte(buffer, offset, codecId);
             offset += this.getExtByteSize(codecId);
-            // Handling 64-bit integers in JS can be tricky, stick to string or BigInt
-            // For simplicity/compatibility, read as hex string or specialized parsing if needed
-            // const value = buffer.readBigUInt64BE(offset); 
-            // offset += 8;
+            // Handling 64-bit integers in JS can be tricky
              const valueHigh = buffer.readUInt32BE(offset);
              const valueLow = buffer.readUInt32BE(offset + 4);
-             // Store as BigInt
+            // Store as BigInt for precision if needed, or string
              const value = (BigInt(valueHigh) << 32n) | BigInt(valueLow);
 
             offset += 8;
@@ -162,7 +159,7 @@ class Tft100Decoder extends BaseDecoder {
              const countXByte = buffer.readUInt16BE(offset);
              offset += 2;
              for (let i = 0; i < countXByte; i++) {
-                 if (offset + 4 > buffer.length) break; // Basic check
+                 if (offset + 4 > buffer.length) break; 
                  const id = buffer.readUInt16BE(offset);
                  offset += 2;
                  const length = buffer.readUInt16BE(offset);
@@ -170,10 +167,43 @@ class Tft100Decoder extends BaseDecoder {
                  if (offset + length > buffer.length) break;
                  const value = buffer.slice(offset, offset + length);
                  offset += length;
-                 ioElements[id] = value.toString('hex'); // Or ascii depending on ID
+                 ioElements[id] = value.toString('hex'); 
              }
         }
         
+        // Map IO attributes
+        const attributes = {
+            internal_battery_voltage: ioElements[67],
+            internal_battery_current: ioElements[68],
+            internal_battery_percent: ioElements[113],
+            external_voltage: ioElements[66],
+            external_extended_voltage: ioElements[800],
+            analog_input_1: ioElements[9],
+            analog_input_2: ioElements[6],
+            trip_odometer: ioElements[199],
+            total_odometer: ioElements[16],
+            x_axis: ioElements[17],
+            y_axis: ioElements[18],
+            z_axis: ioElements[19],
+            sleep_mode: ioElements[200],
+            gsm_signal: ioElements[21],
+            gsm_cell_id: ioElements[205],
+            gsm_area_code: ioElements[206],
+            digital_input_1: ioElements[1],
+            digital_input_2: ioElements[2],
+            digital_input_3: ioElements[3],
+            digital_input_4: ioElements[262],
+            digital_output_1: ioElements[179],
+            digital_output_2: ioElements[180],
+            dout1_overcurrent: ioElements[841],
+            dout2_overcurrent: ioElements[842],
+            extended_analog_input_1: ioElements[839],
+            extended_analog_input_2: ioElements[840],
+            instant_movement: ioElements[303],
+            iso6709_coordinates: ioElements[387],
+            speed: ioElements[24]
+        };
+
         return {
             newOffset: offset,
             data: {
@@ -188,7 +218,8 @@ class Tft100Decoder extends BaseDecoder {
                     speed
                 },
                 eventIoId,
-                io: ioElements
+                io: ioElements,
+                attributes // Enriched attributes matching schema
             }
         };
     }
