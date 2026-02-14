@@ -20,7 +20,7 @@ jobs:
         username: ${{ secrets.USERNAME }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          cd ~/hover_iot
+          cd ~/broker
           git pull origin master
           npm install
           pm2 reload ecosystem.config.js --env production
