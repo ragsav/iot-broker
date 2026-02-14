@@ -133,85 +133,24 @@ const IOTService = {
         },
       });
 
-      if (
-        (responseStr.includes(CONSTANTS.IOT_COMMANDS.VEHICLE_STOP.response[0]) ||
-          responseStr.includes(CONSTANTS.IOT_COMMANDS.VEHICLE_STOP.response[1]) ||
-          responseStr.includes(CONSTANTS.IOT_COMMANDS.VEHICLE_START.response[0]) ||
-          responseStr.includes(CONSTANTS.IOT_COMMANDS.VEHICLE_START.response[1])) &&
-        logEntry?.booking_action
-      ) {
-        console.log("info", {
-          message: "IOTService:confirmCommandExecution:response_to_booking_action",
-          params: {
-            imei: logEntry.imei,
-            booking_action: logEntry.booking_action
-          },
-        });
-        switch (logEntry.booking_action) {
-          case CONSTANTS.BOOKING_ACTIONS.INITIATE_START: {
-            await IOTService.notifyConfirmStartCommand({
-              imei: logEntry.imei,
-              command: logEntry.command,
-              booking_log_id: logEntry.booking_log_id,
-              booking_id: logEntry.booking_id,
-            });
-            console.log("success", {
-              message: "IOTService:confirmCommandExecution:INITIATE_START",
-              params: { imei: logEntry.imei },
-            });
-            break;
-          }
-          case CONSTANTS.BOOKING_ACTIONS.INITIATE_PAUSE: {
-            await IOTService.notifyConfirmPauseCommand({
-              imei: logEntry.imei,
-              command: logEntry.command,
-              booking_log_id: logEntry.booking_log_id,
-              booking_id: logEntry.booking_id,
-            });
-            console.log("success", {
-              message: "IOTService:confirmCommandExecution:INITIATE_PAUSE",
-              params: { imei: logEntry.imei },
-            });
-            break;
-          }
-          case CONSTANTS.BOOKING_ACTIONS.INITIATE_RESUME: {
-            await IOTService.notifyConfirmResumeCommand({
-              imei: logEntry.imei,
-              command: logEntry.command,
-              booking_log_id: logEntry.booking_log_id,
-              booking_id: logEntry.booking_id,
-            });
-            console.log("success", {
-              message: "IOTService:confirmCommandExecution:INITIATE_RESUME",
-              params: { imei: logEntry.imei },
-            });
-            break;
-          }
-          case CONSTANTS.BOOKING_ACTIONS.INITIATE_END: {
-            await IOTService.notifyConfirmEndCommand({
-              imei: logEntry.imei,
-              command: logEntry.command,
-              booking_log_id: logEntry.booking_log_id,
-              booking_id: logEntry.booking_id,
-            });
-            console.log("success", {
-              message: "IOTService:confirmCommandExecution:INITIATE_END",
-              params: { imei: logEntry.imei },
-            });
-            break;
-          }
-          default: {
-            console.log("warning", {
-              message: "IOTService:confirmCommandExecution:wrong command",
-              params: {
-                imei: logEntry.imei,
-                command: logEntry.booking_action,
-              },
-            });
-            break;
-          }
-        }
-      }
+      // Notify command success — identified command (log entry found)
+      await IOTService.notifyCommandSuccess({
+        identified: true,
+        imei: logEntry.imei,
+        command: logEntry.command,
+        response: responseStr,
+        booking_action: logEntry.booking_action || null,
+        booking_log_id: logEntry.booking_log_id || null,
+        booking_id: logEntry.booking_id || null,
+      });
+
+      console.log("success", {
+        message: "IOTService:confirmCommandExecution:success",
+        params: {
+          imei: logEntry.imei,
+          booking_action: logEntry.booking_action,
+        },
+      });
     } catch (error) {
       console.log("error", {
         message: "IOTService:confirmCommandExecution:catch-1",
@@ -220,10 +159,29 @@ const IOTService = {
     }
   },
 
-  notifyConfirmStartCommand: async (data) => { console.log('NOTIFY: Confirm Start', data); },
-  notifyConfirmPauseCommand: async (data) => { console.log('NOTIFY: Confirm Pause', data); },
-  notifyConfirmResumeCommand: async (data) => { console.log('NOTIFY: Confirm Resume', data); },
-  notifyConfirmEndCommand: async (data) => { console.log('NOTIFY: Confirm End', data); },
+  /**
+   * Notification: command response received and matched to a log entry.
+   * data.identified = true when log entry was found, false for unidentified responses.
+   */
+  notifyCommandSuccess: async (data) => {
+    console.log('NOTIFY:CommandSuccess', data);
+  },
+
+  /**
+   * Notification: commands exhausted retries and were removed (bulk).
+   * Receives array of failed command entries with booking_action.
+   */
+  notifyBulkCommandFailure: async (entries) => {
+    console.log('NOTIFY:BulkCommandFailure', { count: entries.length, entries });
+  },
+
+  /**
+   * Notification: commands were retried (bulk).
+   * Receives array of retried command entries.
+   */
+  notifyBulkCommandRetry: async (entries) => {
+    console.log('NOTIFY:BulkCommandRetry', { count: entries.length, entries });
+  },
 
   handleTelemetry: async (imei, records) => {
       if (!records || records.length === 0) return;
@@ -344,6 +302,107 @@ const IOTService = {
       }
 
       console.log('IOTService:handleTelemetry:saved', { imei, count: records.length });
+  },
+
+  revertTimeoutCommands: async () => {
+    try {
+      console.log("info", {
+        message: "IOTService:revertTimeoutCommands:init",
+      });
+
+      // Find commands that have timed out
+      const res = await db.query(`
+                SELECT t1.*, t2.booking_action 
+                FROM tbl_iot_command_logs t1
+                LEFT JOIN tbl_booking_logs t2 ON t1.booking_log_id = t2.booking_log_id
+                WHERE t1.estimated_timeout_at < NOW()
+            `);
+
+      const iotCommandLogEntries = res.rows;
+
+      const toRetry = [];
+      const toFail = [];
+
+      for (const entry of iotCommandLogEntries) {
+        if (entry.retry >= CONSTANTS.DEFAULT_MAX_IOT_COMMAND_RETRY) {
+          toFail.push(entry);
+        } else {
+          toRetry.push(entry);
+        }
+      }
+
+      // Handle Retries
+      if (toRetry.length > 0) {
+        const imeis = toRetry.map(e => e.imei);
+        const newTimeout = moment().add(CONSTANTS.IOT_COMMAND_TIMEOUT, "seconds").toDate();
+
+        // Bulk Update
+        await db.query(`
+            UPDATE tbl_iot_command_logs 
+            SET retry = retry + 1, estimated_timeout_at = $1
+            WHERE imei = ANY($2::text[])
+        `, [newTimeout, imeis]);
+
+        // Sequential device send (limitation of device connection)
+        const sentImeis = [];
+        const failedImeis = [];
+
+        for (const entry of toRetry) {
+          const sent = deviceManager.sendCommand(entry.imei, entry.command);
+          if (sent) sentImeis.push(entry.imei);
+          else failedImeis.push(entry.imei);
+        }
+
+        console.log("info", {
+          message: "IOTService:revertTimeoutCommands:retried_bulk",
+          params: {
+            total: toRetry.length,
+            sent: sentImeis,
+            failed_to_send: failedImeis
+          },
+        });
+
+        // Bulk retry notification
+        await IOTService.notifyBulkCommandRetry(toRetry);
+      }
+
+      // Handle Failures
+      if (toFail.length > 0) {
+        const imeis = toFail.map(e => e.imei);
+
+        // Bulk Delete
+        await db.query(`
+             DELETE FROM tbl_iot_command_logs 
+             WHERE imei = ANY($1::text[])
+         `, [imeis]);
+
+        // Bulk Log
+        console.log("warn", {
+          message: "IOTService:revertTimeoutCommands:failed_bulk",
+          params: {
+            total: toFail.length,
+            imeis: imeis
+          },
+        });
+
+        // Bulk failure notification
+        await IOTService.notifyBulkCommandFailure(toFail);
+      }
+
+      console.log("success", {
+        message: "IOTService:revertTimeoutCommands:success",
+        params: {
+          failed_count: toFail.length,
+          retried_count: toRetry.length,
+        },
+      });
+
+    } catch (error) {
+      console.log("error", {
+        message: "IOTService:revertTimeoutCommands:catch-1",
+        params: { error: error.message },
+      });
+    }
   }
 };
 

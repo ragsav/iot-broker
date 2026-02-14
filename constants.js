@@ -40,6 +40,7 @@ const CONSTANTS = {
         }
     },
     IOT_COMMAND_TIMEOUT: 60, // seconds
+    DEFAULT_MAX_IOT_COMMAND_RETRY: 3,
     ERROR_CODES: {
         SERVER_ERROR: 'SERVER_ERROR'
     },

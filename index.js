@@ -1,8 +1,11 @@
 
+require('dotenv').config();
 const net = require('net');
 const {  CONSTANTS } = require('./constants');
 const setupSocket = require('./handlers/socket.handler');
 const startApiServer = require('./api');
+const CronJobScheduler = require('./jobs/cron.job');
+const db = require('./db');
 
 // ============================================================================
 // SERVER SETUP
@@ -22,6 +25,12 @@ server.on('error', (err) => {
 });
 
 async function main() {
+    // Test DB connection first
+    await db.testConnection();
+
+    // Start Cron Jobs
+    CronJobScheduler.revertTimedOutIOTCommandsCronjob();
+
     // Start API
     await startApiServer();
 
