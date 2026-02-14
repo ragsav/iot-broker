@@ -1,0 +1,847 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model tbl_users {
+  user_id                            Int                                  @id @default(autoincrement())
+  firebase_id                        String                               @db.VarChar(128)
+  phone_number                       String                               @unique(map: "tbl_users_phone_number_unique") @db.VarChar
+  first_name                         String?                              @db.VarChar
+  last_name                          String?                              @db.VarChar
+  address1                           String?                              @db.VarChar
+  address2                           String?                              @db.VarChar
+  identification_document_id         Int?
+  wallet_id                          Int?
+  email                              String?                              @db.VarChar
+  is_disabled                        Boolean?                             @default(false)
+  created_at                         DateTime                             @default(now()) @db.Timestamptz(6)
+  updated_at                         DateTime                             @default(now()) @db.Timestamptz(6)
+  disabled_at                        DateTime?                            @db.Timestamptz(6)
+  disable_reason                     String?                              @db.VarChar
+  user_type_id                       Int
+  razorpay_customer_id               String?                              @db.VarChar
+  last_lat                           Float?
+  last_lng                           Float?
+  location_offers_map_id             Int                                  @default(1)
+  last_seen                          DateTime?                            @db.Timestamptz(6)
+  ad_user_map_id                     Int?                                 @default(1)
+  aadhaar_kyc                        Boolean                              @default(false)
+  tbl_booking_logs                   tbl_booking_logs[]
+  tbl_bookings                       tbl_bookings[]
+  tbl_coupon_purchase_receipts       tbl_coupon_purchase_receipts[]
+  tbl_coupons                        tbl_coupons[]
+  tbl_delivery_booking_logs          tbl_delivery_booking_logs[]
+  tbl_delivery_bookings              tbl_delivery_bookings[]
+  tbl_payment_orders                 tbl_payment_orders[]
+  tbl_plan_purchase_receipts         tbl_plan_purchase_receipts[]
+  tbl_plans                          tbl_plans[]
+  tbl_push_notification_tokens       tbl_push_notification_tokens[]
+  tbl_reservations                   tbl_reservations[]
+  tbl_subscription_purchase_receipts tbl_subscription_purchase_receipts[]
+  tbl_subscriptions                  tbl_subscriptions[]
+  tbl_support_tickets                tbl_support_tickets[]
+  tbl_ad_user_map                    tbl_ad_user_map?                     @relation(fields: [ad_user_map_id], references: [ad_user_map_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_users_tbl_ad_user_map_ad_user_map_id")
+  tbl_location_offers_map            tbl_location_offers_map              @relation(fields: [location_offers_map_id], references: [location_offers_map_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_users_tbl_user_offers_map_offers_map_id")
+  tbl_user_types                     tbl_user_types                       @relation(fields: [user_type_id], references: [user_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_users_tbl_user_types_user_type_id")
+  tbl_wallets                        tbl_wallets?                         @relation(fields: [wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_users_tbl_wallets_wallet_id")
+}
+
+model tbl_wallets {
+  wallet_id                                                                                   Int                                 @id @default(autoincrement())
+  balance                                                                                     Int?                                @default(0)
+  is_disabled                                                                                 Boolean?                            @default(false)
+  created_at                                                                                  DateTime                            @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                  DateTime                            @default(now()) @db.Timestamptz(6)
+  disable_reason                                                                              String?                             @db.VarChar
+  security_deposit                                                                            Int                                 @default(0)
+  security_deposit_at                                                                         DateTime?                           @db.Timestamptz(6)
+  tbl_inter_wallet_transactions_tbl_inter_wallet_transactions_receiver_wallet_idTotbl_wallets tbl_inter_wallet_transactions[]     @relation("tbl_inter_wallet_transactions_receiver_wallet_idTotbl_wallets")
+  tbl_inter_wallet_transactions_tbl_inter_wallet_transactions_sender_wallet_idTotbl_wallets   tbl_inter_wallet_transactions[]     @relation("tbl_inter_wallet_transactions_sender_wallet_idTotbl_wallets")
+  tbl_security_deposit_transactions                                                           tbl_security_deposit_transactions[]
+  tbl_users                                                                                   tbl_users[]
+  tbl_wallet_recharge_transactions                                                            tbl_wallet_recharge_transactions[]
+}
+
+model tbl_user_types {
+  user_type_id                 Int                         @id @default(autoincrement())
+  title                        String                      @db.VarChar
+  description                  String?                     @db.VarChar
+  is_disabled                  Boolean?                    @default(false)
+  created_at                   DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime                    @default(now()) @db.Timestamptz(6)
+  disabled_at                  DateTime?                   @db.Timestamptz(6)
+  disable_reason               String?                     @db.VarChar
+  max_plans                    Int?                        @default(2)
+  max_subscriptions            Int?                        @default(2)
+  security_deposit_type_id     Int?                        @default(1)
+  initial_coupon_type_id       Int?
+  initial_plan_type_id         Int?
+  initial_subscription_type_id Int?
+  max_coupons                  Int?                        @default(10000)
+  tbl_security_deposit_types   tbl_security_deposit_types? @relation(fields: [security_deposit_type_id], references: [security_deposit_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_user_types_tbl_security_deposit_types_security_deposit_t")
+  tbl_users                    tbl_users[]
+}
+
+model tbl_stations {
+  station_id                                                       Int                @id @default(autoincrement())
+  address                                                          String             @db.VarChar
+  pincode                                                          String             @default("201301") @db.VarChar
+  lat                                                              Float              @default(20)
+  lng                                                              Float              @default(30)
+  valid_range                                                      Float              @default(15)
+  max_capacity                                                     Int                @default(20)
+  is_disabled                                                      Boolean?           @default(false)
+  created_at                                                       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime           @default(now()) @db.Timestamptz(6)
+  disabled_at                                                      DateTime?          @db.Timestamptz(6)
+  disable_reason                                                   String?            @db.VarChar
+  image_urls                                                       String?            @db.VarChar
+  is_battery_station                                               Boolean            @default(false)
+  tbl_bookings_tbl_bookings_booking_end_station_idTotbl_stations   tbl_bookings[]     @relation("tbl_bookings_booking_end_station_idTotbl_stations")
+  tbl_bookings_tbl_bookings_booking_start_station_idTotbl_stations tbl_bookings[]     @relation("tbl_bookings_booking_start_station_idTotbl_stations")
+  tbl_reservations                                                 tbl_reservations[]
+  tbl_vehicles                                                     tbl_vehicles[]
+}
+
+model tbl_vehicle_types {
+  vehicle_type_id                   Int                     @id @default(autoincrement())
+  description                       String?                 @db.VarChar
+  category                          String?                 @db.VarChar
+  unlock_charge                     Int                     @default(1500)
+  ride_time_charge                  Int                     @default(270)
+  pause_time_charge                 Int                     @default(100)
+  day_rate                          Int?
+  is_disabled                       Boolean?                @default(false)
+  created_at                        DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                        DateTime                @default(now()) @db.Timestamptz(6)
+  disabled_at                       DateTime?               @db.Timestamptz(6)
+  disable_reason                    String?                 @db.VarChar
+  make                              String                  @default("Hero") @db.VarChar
+  model                             String                  @default("Activa 4G") @db.VarChar
+  title                             String?                 @db.VarChar
+  is_deliverable                    Boolean                 @default(true)
+  image_urls                        String?                 @db.VarChar
+  delivery_charge                   Int?                    @default(10000)
+  delivery_duration_charge_per_hour Int?                    @default(5000)
+  week_rate                         Int?
+  month_rate                        Int?
+  tbl_delivery_bookings             tbl_delivery_bookings[]
+  tbl_vehicles                      tbl_vehicles[]
+}
+
+model tbl_vehicles {
+  vehicle_id               Int                     @id @default(autoincrement())
+  vehicle_type_id          Int                     @default(1)
+  vehicle_status           String                  @default("MAINTAINANCE") @db.VarChar
+  battery                  Int                     @default(100)
+  station_id               Int?
+  is_locked                Boolean                 @default(false)
+  lat                      Float                   @default(40)
+  lng                      Float                   @default(50)
+  total_distance_travelled Float                   @default(0)
+  is_disabled              Boolean?                @default(false)
+  created_at               DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime                @default(now()) @db.Timestamptz(6)
+  disabled_at              DateTime?               @db.Timestamptz(6)
+  disable_reason           String?                 @db.VarChar
+  vehicle_number           String                  @default("HS0004") @db.VarChar
+  image_urls               String?                 @db.VarChar
+  ble_name                 String                  @default("HOVER_MX0001") @db.VarChar
+  ble_service_uuid         String                  @default(dbgenerated("'4fafc201-1fb5-459e-8fcc-c5c9c331914b'::uuid")) @db.Uuid
+  ble_token                String                  @default("mx00011234567890") @db.VarChar
+  ble_uuid                 String                  @default(dbgenerated("'beb5483e-36e1-4688-b7f5-ea07361b26a8'::uuid")) @db.Uuid
+  iot_imei                 String?                 @db.VarChar
+  vehicle_code             String                  @default("HS0004") @db.VarChar
+  ble_on_command           String?                 @db.VarChar
+  ble_off_command          String?                 @db.VarChar
+  iot_device_id            String?                 @db.VarChar
+  is_old_iot               Boolean                 @default(true)
+  tbl_bookings             tbl_bookings[]
+  tbl_delivery_bookings    tbl_delivery_bookings[]
+  tbl_reservations         tbl_reservations[]
+  tbl_stations             tbl_stations?           @relation(fields: [station_id], references: [station_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_vehicles_tbl_stations_station_id")
+  tbl_vehicle_types        tbl_vehicle_types       @relation(fields: [vehicle_type_id], references: [vehicle_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_vehicles_tbl_vehicle_types_vehicle_id")
+}
+
+model tbl_payment_orders {
+  amount                        Float                          @default(0)
+  created_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  user_id                       Int
+  payment_order_id              String                         @id @db.VarChar
+  attempts                      Int                            @default(0)
+  payment_order_status          String?                        @db.VarChar
+  payment_purpose               String                         @db.VarChar
+  payment_purpose_receipt_id    String                         @db.VarChar
+  inter_wallet_transaction_id   Int?
+  tbl_inter_wallet_transactions tbl_inter_wallet_transactions? @relation(fields: [inter_wallet_transaction_id], references: [inter_wallet_transaction_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_payment_transactions_tbl_inter_wallet_transactions_inter")
+  tbl_users                     tbl_users                      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_payment_transactions_tbl_users_user_id")
+  tbl_payment_transactions      tbl_payment_transactions[]
+
+  @@index([user_id], map: "fki_fk_tbl_payment_transactions_tbl_users_user_id")
+}
+
+model tbl_payment_transactions {
+  amount                                Int                @default(0)
+  created_at                            DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime           @default(now()) @db.Timestamptz(6)
+  payment_transaction_status            String?            @db.VarChar
+  payment_transaction_id                String             @id @db.VarChar
+  amount_refunded                       Int?
+  internal_payment_transaction_id       Int                @default(autoincrement())
+  payment_order_id                      String             @db.VarChar
+  payment_transaction_bank              String?            @db.VarChar
+  payment_transaction_captured          Boolean            @default(false)
+  payment_transaction_card              String?            @db.VarChar
+  payment_transaction_card_id           String?            @db.VarChar
+  payment_transaction_email             String?            @db.VarChar
+  payment_transaction_error_code        String?            @db.VarChar
+  payment_transaction_error_description String?            @db.VarChar
+  payment_transaction_fee               Int?
+  payment_transaction_method            String?            @db.VarChar
+  payment_transaction_tax               Int?
+  payment_transaction_vpa               String?            @db.VarChar
+  payment_transaction_wallet            String?            @db.VarChar
+  refund_status                         String?            @db.VarChar
+  tbl_payment_orders                    tbl_payment_orders @relation(fields: [payment_order_id], references: [payment_order_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_payment_transactions_tbl_payment_order_payment_order_id")
+}
+
+model tbl_support_tickets {
+  support_ticket_id Int       @id(map: "tbl_user_complaints_pkey") @default(autoincrement())
+  text              String    @db.VarChar
+  user_id           Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  meta_key          String?   @db.VarChar
+  closed_at         DateTime? @db.Timestamptz(6)
+  other_json_data   String?   @db.VarChar
+  tbl_users         tbl_users @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_user_complaints_tbl_users_user_id")
+}
+
+model tbl_security_deposit_types {
+  security_deposit_type_id Int              @id @default(autoincrement())
+  created_at               DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?        @db.Timestamptz(6)
+  is_active                Boolean?         @default(true)
+  amount                   Int              @default(25000)
+  tbl_user_types           tbl_user_types[]
+}
+
+model tbl_inter_wallet_transactions {
+  inter_wallet_transaction_id                                               Int                             @id @default(autoincrement())
+  inter_wallet_transaction_message                                          String?                         @db.VarChar(300)
+  inter_wallet_transaction_status                                           String                          @default("PENDING") @db.VarChar
+  created_at                                                                DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                                                                DateTime                        @default(now()) @db.Timestamptz(6)
+  sender_wallet_id                                                          Int
+  receiver_wallet_id                                                        Int
+  amount                                                                    Int
+  is_refund                                                                 Boolean                         @default(false)
+  refund_at                                                                 DateTime?                       @db.Timestamptz(6)
+  tbl_booking_receipts                                                      tbl_booking_receipts[]
+  tbl_delivery_booking_receipts                                             tbl_delivery_booking_receipts[]
+  tbl_wallets_tbl_inter_wallet_transactions_receiver_wallet_idTotbl_wallets tbl_wallets                     @relation("tbl_inter_wallet_transactions_receiver_wallet_idTotbl_wallets", fields: [receiver_wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_inter_wallet_transactions_tbl_wallets_receiver_wallet_id")
+  tbl_wallets_tbl_inter_wallet_transactions_sender_wallet_idTotbl_wallets   tbl_wallets                     @relation("tbl_inter_wallet_transactions_sender_wallet_idTotbl_wallets", fields: [sender_wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_inter_wallet_transactions_tbl_wallets_sender_wallet_id")
+  tbl_payment_orders                                                        tbl_payment_orders[]
+  tbl_reservation_receipts                                                  tbl_reservation_receipts[]
+}
+
+model tbl_wallet_recharge_transactions {
+  wallet_recharge_transaction_id     Int          @id @default(autoincrement())
+  created_at                         DateTime     @default(now()) @db.Timestamptz(6)
+  wallet_id                          Int?
+  wallet_recharge_transaction_status String       @default("PENDING") @db.VarChar
+  updated_at                         DateTime     @default(now()) @db.Timestamptz(6)
+  tbl_wallets                        tbl_wallets? @relation(fields: [wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_wallet_recharge_transactions_tbl_wallets_wallet_id")
+}
+
+model tbl_security_deposit_transactions {
+  security_deposit_transaction_id     Int          @id(map: "tbl_security_deposits_pkey") @default(autoincrement())
+  created_at                          DateTime     @default(now()) @db.Timestamptz(6)
+  wallet_id                           Int?
+  security_deposit_transaction_status String       @default("PENDING") @db.VarChar
+  updated_at                          DateTime     @default(now()) @db.Timestamptz(6)
+  tbl_wallets                         tbl_wallets? @relation(fields: [wallet_id], references: [wallet_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_security_deposits_tbl_wallets_wallet_id")
+}
+
+model tbl_coupon_types {
+  coupon_type_id               Int                            @id(map: "tbl_coupon_types_pk") @default(autoincrement())
+  created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime?                      @db.Timestamptz(6)
+  disabled_at                  DateTime?                      @db.Timestamptz(6)
+  disable_reason               String?                        @db.VarChar
+  is_disabled                  Boolean                        @default(false)
+  title                        String?                        @db.VarChar
+  description                  String?                        @db.VarChar
+  usage_limit                  Int?
+  validity_period              Int?
+  applicability_order          String                         @default("end") @db.VarChar
+  category                     String                         @db.VarChar
+  initial_quantity             Int?
+  cap                          Float?
+  vehicle_type_ids             Int[]                          @default([])
+  tbl_coupon_purchase_receipts tbl_coupon_purchase_receipts[]
+  tbl_coupons                  tbl_coupons[]
+}
+
+model tbl_coupons {
+  coupon_id                     Int                             @id(map: "tbl_coupons_pk") @default(autoincrement())
+  coupon_type_id                Int
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime?                       @db.Timestamptz(6)
+  disabled_at                   DateTime?                       @db.Timestamptz(6)
+  disable_reason                String?                         @db.VarChar
+  is_disabled                   Boolean                         @default(false)
+  usage_balance                 Int?
+  validity                      DateTime?                       @db.Timestamptz(6)
+  quantity                      Int?
+  user_id                       Int?
+  tbl_booking_receipts          tbl_booking_receipts[]
+  tbl_coupon_types              tbl_coupon_types                @relation(fields: [coupon_type_id], references: [coupon_type_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_coupons_tbl_coupon_types_coupon_type_id")
+  tbl_users                     tbl_users?                      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_coupons_tbl_users_user_id")
+  tbl_delivery_booking_receipts tbl_delivery_booking_receipts[]
+  tbl_reservation_receipts      tbl_reservation_receipts[]
+}
+
+model tbl_plan_types {
+  plan_type_id               Int                          @id(map: "tbl_plan_types_pk") @default(autoincrement())
+  created_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime?                    @db.Timestamptz(6)
+  disabled_at                DateTime?                    @db.Timestamptz(6)
+  disable_reason             String?                      @db.VarChar
+  is_disabled                Boolean                      @default(false)
+  title                      String?                      @db.VarChar
+  description                String?                      @db.VarChar
+  validity_period            Int?
+  tags                       String?                      @db.VarChar
+  offered_quantity           Int                          @default(20000)
+  vehicle_type_ids           Int[]                        @default([])
+  amount                     Int                          @default(20000)
+  offer_description          String?                      @db.VarChar
+  tbl_plan_purchase_receipts tbl_plan_purchase_receipts[]
+  tbl_plans                  tbl_plans[]
+}
+
+model tbl_plans {
+  plan_id                       Int                             @id(map: "tbl_plans_pk") @default(autoincrement())
+  plan_type_id                  Int
+  started_at                    DateTime?                       @db.Timestamptz(6)
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime?                       @db.Timestamptz(6)
+  disabled_at                   DateTime?                       @db.Timestamptz(6)
+  disable_reason                String?                         @db.VarChar
+  is_disabled                   Boolean                         @default(false)
+  title                         String?                         @db.VarChar
+  description                   String?                         @db.VarChar
+  validity                      DateTime?                       @db.Timestamptz(6)
+  user_id                       Int
+  remaining_quantity            Int                             @default(0)
+  tbl_booking_receipts          tbl_booking_receipts[]
+  tbl_delivery_booking_receipts tbl_delivery_booking_receipts[]
+  tbl_plan_types                tbl_plan_types                  @relation(fields: [plan_type_id], references: [plan_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_plans_tbl_plan_types_plan_type_id")
+  tbl_users                     tbl_users                       @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_plans_tbl_users_user_id")
+  tbl_reservation_receipts      tbl_reservation_receipts[]
+}
+
+model tbl_subscription_types {
+  subscription_type_id               Int                                  @id(map: "tbl_subscription_types_pk") @default(autoincrement())
+  created_at                         DateTime                             @default(now()) @db.Timestamptz(6)
+  updated_at                         DateTime?                            @db.Timestamptz(6)
+  disabled_at                        DateTime?                            @db.Timestamptz(6)
+  disable_reason                     String?                              @db.VarChar
+  is_disabled                        Boolean                              @default(false)
+  title                              String?                              @db.VarChar
+  description                        String?                              @db.VarChar
+  validity_period                    Int?
+  tags                               String?                              @db.VarChar
+  vehicle_type_ids                   Int[]                                @default([])
+  ride_time_charge                   Int?
+  pause_time_charge                  Int?
+  unlock_charge                      Int?
+  free_booking_time                  Int?
+  amount                             Int                                  @default(20000)
+  tbl_subscription_purchase_receipts tbl_subscription_purchase_receipts[]
+  tbl_subscriptions                  tbl_subscriptions[]
+}
+
+model tbl_subscriptions {
+  subscription_id               Int                             @id(map: "tbl_subscriptions_pk") @default(autoincrement())
+  subscription_type_id          Int
+  created_at                    DateTime                        @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime?                       @db.Timestamptz(6)
+  disabled_at                   DateTime?                       @db.Timestamptz(6)
+  disable_reason                String?                         @db.VarChar
+  is_disabled                   Boolean                         @default(false)
+  validity                      DateTime?                       @db.Timestamptz(6)
+  user_id                       Int
+  remaining_free_booking_time   Int?
+  tbl_booking_receipts          tbl_booking_receipts[]
+  tbl_delivery_booking_receipts tbl_delivery_booking_receipts[]
+  tbl_reservation_receipts      tbl_reservation_receipts[]
+  tbl_subscription_types        tbl_subscription_types          @relation(fields: [subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_subscriptions_tbl_subscription_types_subscription_type_i")
+  tbl_users                     tbl_users                       @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_subscriptions_tbl_users_user_id")
+}
+
+model tbl_location_offers_map {
+  location_offers_map_id Int         @id @default(autoincrement())
+  lat_1                  Float
+  lat_2                  Float
+  lat_3                  Float
+  lat_4                  Float
+  lng_1                  Float
+  lng_2                  Float
+  lng_3                  Float
+  lng_4                  Float
+  created_at             DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime?   @db.Timestamptz(6)
+  disabled_at            DateTime?   @db.Timestamptz(6)
+  disable_reason         String?     @db.VarChar
+  title                  String?     @db.VarChar
+  subscription_type_ids  Int[]
+  plan_type_ids          Int[]
+  coupon_type_ids        Int[]
+  pause_time_charge      Int         @default(100)
+  reservation_type_ids   Int[]
+  ride_time_charge       Int         @default(270)
+  unlock_charge          Int?
+  tbl_users              tbl_users[]
+}
+
+model tbl_subscription_purchase_receipts {
+  subscription_purchase_receipt_id     Int                    @id @default(autoincrement())
+  user_id                              Int
+  subscription_type_id                 Int
+  subscription_purchase_receipt_status String                 @default("PENDING") @db.VarChar
+  created_at                           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at                           DateTime?              @db.Timestamptz(6)
+  payment_source                       String                 @db.VarChar
+  alloted_subscription_id              Int?
+  tbl_subscription_types               tbl_subscription_types @relation(fields: [subscription_type_id], references: [subscription_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_subscription_purchase_receipts_tbl_subscription_types_su")
+  tbl_users                            tbl_users              @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_subscription_purchase_receipts_tbl_users_user_id")
+}
+
+model tbl_plan_purchase_receipts {
+  plan_purchase_receipt_id     Int            @id @default(autoincrement())
+  user_id                      Int
+  plan_type_id                 Int
+  plan_purchase_receipt_status String         @default("PENDING") @db.VarChar
+  created_at                   DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                   DateTime?      @db.Timestamptz(6)
+  payment_source               String         @db.VarChar
+  alloted_plan_id              Int?
+  tbl_plan_types               tbl_plan_types @relation(fields: [plan_type_id], references: [plan_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_plan_purchase_receipts_tbl_plan_types_su")
+  tbl_users                    tbl_users      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_plan_purchase_receipts_tbl_users_user_id")
+}
+
+model tbl_booking_receipts {
+  booking_receipt_id                    Int                            @id(map: "tbl_receipts_pkey") @default(autoincrement())
+  total_booking_time                    Decimal                        @db.Decimal
+  total_ride_time                       Decimal                        @db.Decimal
+  total_pause_time                      Decimal                        @db.Decimal
+  tax                                   Decimal                        @default(0) @db.Decimal
+  unlock_charge                         Decimal                        @default(0) @db.Decimal
+  pause_time_charge                     Decimal                        @default(0) @db.Decimal
+  ride_time_charge                      Decimal                        @default(0) @db.Decimal
+  outstation_charge                     Decimal                        @default(0) @db.Decimal
+  other_charge                          Decimal                        @default(0) @db.Decimal
+  minimum_charge_addition               Decimal                        @default(0) @db.Decimal
+  created_at                            DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                       @default(now()) @db.Timestamptz(6)
+  final_booking_fare                    Decimal                        @default(0) @db.Decimal
+  booking_start_at                      DateTime?                      @db.Timestamptz(6)
+  booking_end_at                        DateTime?                      @db.Timestamptz(6)
+  surge_charge                          Decimal?                       @db.Decimal
+  tax_rate                              Decimal?                       @db.Decimal
+  coupon_id                             Int?
+  plan_id                               Int?
+  subscription_id                       Int?
+  initial_ride_time_fare                Decimal                        @db.Decimal
+  initial_pause_time_fare               Decimal                        @db.Decimal
+  final_ride_time_fare                  Decimal                        @db.Decimal
+  final_pause_time_fare                 Decimal                        @db.Decimal
+  initial_unlock_fare                   Decimal                        @db.Decimal
+  final_unlock_fare                     Decimal                        @db.Decimal
+  inter_wallet_transaction_id           Int?
+  initial_booking_time                  Decimal?                       @db.Decimal
+  initial_pause_time                    Decimal?                       @db.Decimal
+  initial_ride_time                     Decimal?                       @db.Decimal
+  vehicle_maintenance_charge            Decimal                        @default(0) @db.Decimal
+  payment_gateway_charge                Decimal                        @default(0) @db.Decimal
+  vehicle_maintenance_charge_percentage Decimal                        @default(0) @db.Decimal
+  payment_gateway_charge_percentage     Decimal                        @default(0) @db.Decimal
+  minimum_charge                        Decimal                        @default(3000) @db.Decimal
+  tbl_coupons                           tbl_coupons?                   @relation(fields: [coupon_id], references: [coupon_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_booking_receipts_tbl_coupons_coupon_id")
+  tbl_inter_wallet_transactions         tbl_inter_wallet_transactions? @relation(fields: [inter_wallet_transaction_id], references: [inter_wallet_transaction_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_booking_receipts_tbl_inter_wallet_transactions_inter_wallet")
+  tbl_plans                             tbl_plans?                     @relation(fields: [plan_id], references: [plan_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_booking_receipts_tbl_plans_plan_id")
+  tbl_subscriptions                     tbl_subscriptions?             @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_booking_receipts_tbl_subscriptions_subscription_id")
+  tbl_bookings                          tbl_bookings[]
+}
+
+model tbl_booking_reviews {
+  booking_review_id Int            @id @default(autoincrement())
+  text              String?        @db.VarChar
+  stars             Int?
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  tbl_bookings      tbl_bookings[]
+}
+
+model tbl_bookings {
+  booking_id                                                       Int                   @id @default(autoincrement())
+  booking_status                                                   String                @default("RIDING") @db.VarChar
+  vehicle_id                                                       Int
+  booking_start_station_id                                         Int
+  booking_end_station_id                                           Int?
+  booking_pause_time                                               Int                   @default(0)
+  created_at                                                       DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                                       DateTime              @default(now()) @db.Timestamptz(6)
+  last_pause_at                                                    DateTime?             @db.Timestamptz(6)
+  last_resume_at                                                   DateTime?             @db.Timestamptz(6)
+  booking_start_at                                                 DateTime?             @db.Timestamptz(6)
+  estimated_booking_end_at                                         DateTime?             @db.Timestamptz(6)
+  booking_end_at                                                   DateTime?             @db.Timestamptz(6)
+  booking_receipt_id                                               Int?
+  user_id                                                          Int
+  booking_initiation_at                                            DateTime              @default(now()) @db.Timestamptz(6)
+  user_selected_coupon_id                                          Int?
+  user_selected_plan_id                                            Int?
+  user_selected_subscription_id                                    Int?
+  booking_review_id                                                Int?
+  outstation_distance                                              Float                 @default(0) @db.Real
+  tbl_booking_logs                                                 tbl_booking_logs[]
+  tbl_booking_reviews                                              tbl_booking_reviews?  @relation(fields: [booking_review_id], references: [booking_review_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_booking_reviews_booking_review_id")
+  tbl_booking_receipts                                             tbl_booking_receipts? @relation(fields: [booking_receipt_id], references: [booking_receipt_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_bookings_receipts_booking_receipt_id")
+  tbl_stations_tbl_bookings_booking_end_station_idTotbl_stations   tbl_stations?         @relation("tbl_bookings_booking_end_station_idTotbl_stations", fields: [booking_end_station_id], references: [station_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_stations_booking_end_station_id")
+  tbl_stations_tbl_bookings_booking_start_station_idTotbl_stations tbl_stations          @relation("tbl_bookings_booking_start_station_idTotbl_stations", fields: [booking_start_station_id], references: [station_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_stations_booking_start_station_id")
+  tbl_users                                                        tbl_users             @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_users_user_id")
+  tbl_vehicles                                                     tbl_vehicles          @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_bookings_tbl_vehicles_vehicle_id")
+}
+
+model tbl_booking_logs {
+  booking_log_id       Int                    @id @default(autoincrement())
+  booking_id           Int
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  user_id              Int
+  booking_action       String                 @db.VarChar
+  lat                  Float?
+  lng                  Float?
+  battery              Int?
+  tbl_bookings         tbl_bookings           @relation(fields: [booking_id], references: [booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_booking_logs_tbl_bookings_booking_id")
+  tbl_users            tbl_users              @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_booking_logs_tbl_users_user_id")
+  tbl_iot_command_logs tbl_iot_command_logs[]
+}
+
+model tbl_coupon_purchase_receipts {
+  coupon_purchase_receipt_id     Int              @id @default(autoincrement())
+  user_id                        Int
+  coupon_type_id                 Int
+  coupon_purchase_receipt_status String           @default("PENDING") @db.VarChar
+  created_at                     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime?        @db.Timestamptz(6)
+  payment_source                 String           @db.VarChar
+  alloted_coupon_id              Int?
+  tbl_coupon_types               tbl_coupon_types @relation(fields: [coupon_type_id], references: [coupon_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_coupon_purchase_receipts_tbl_plan_types_su")
+  tbl_users                      tbl_users        @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_coupon_purchase_receipts_tbl_users_user_id")
+}
+
+model tbl_reservation_receipts {
+  reservation_receipt_id        Int                            @id @default(autoincrement())
+  total_reservation_time        Decimal                        @db.Decimal
+  tax                           Decimal                        @default(0) @db.Decimal
+  reservation_time_charge       Decimal                        @default(0) @db.Decimal
+  other_charge                  Decimal                        @default(0) @db.Decimal
+  minimum_charge_addition       Decimal                        @default(0) @db.Decimal
+  created_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  final_reservation_fare        Decimal                        @default(0) @db.Decimal
+  reservation_start_at          DateTime?                      @db.Timestamptz(6)
+  reservation_end_at            DateTime?                      @db.Timestamptz(6)
+  surge_charge                  Decimal?                       @db.Decimal
+  tax_rate                      Decimal?                       @db.Decimal
+  coupon_id                     Int?
+  plan_id                       Int?
+  subscription_id               Int?
+  initial_reservation_time_fare Decimal                        @db.Decimal
+  final_reservation_time_fare   Decimal                        @db.Decimal
+  inter_wallet_transaction_id   Int?
+  tbl_coupons                   tbl_coupons?                   @relation(fields: [coupon_id], references: [coupon_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_reservation_receipts_tbl_coupons_coupon_id")
+  tbl_inter_wallet_transactions tbl_inter_wallet_transactions? @relation(fields: [inter_wallet_transaction_id], references: [inter_wallet_transaction_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_reservation_receipts_tbl_inter_wallet_transactions_inter_wa")
+  tbl_plans                     tbl_plans?                     @relation(fields: [plan_id], references: [plan_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_reservation_receipts_tbl_plans_plan_id")
+  tbl_subscriptions             tbl_subscriptions?             @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_reservation_receipts_tbl_subscriptions_subscription_id")
+  tbl_reservations              tbl_reservations[]
+}
+
+model tbl_reservation_types {
+  reservation_type_id Int                @id(map: "tbl_reservation_types_pk") @default(autoincrement())
+  reservation_time    Int                @default(10)
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?          @db.Timestamptz(6)
+  disabled_at         DateTime?          @db.Timestamptz(6)
+  disable_reason      String?            @db.VarChar
+  is_disabled         Boolean            @default(false)
+  title               String?            @db.VarChar
+  description         String?            @db.VarChar
+  amount              Int?               @default(2000)
+  tbl_reservations    tbl_reservations[]
+}
+
+model tbl_reservations {
+  reservation_id                Int                       @id @default(autoincrement())
+  reservation_status            String                    @db.VarChar
+  vehicle_id                    Int
+  reservation_station_id        Int
+  created_at                    DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                  @default(now()) @db.Timestamptz(6)
+  reservation_start_at          DateTime?                 @db.Timestamptz(6)
+  estimated_reservation_end_at  DateTime?                 @db.Timestamptz(6)
+  reservation_end_at            DateTime?                 @db.Timestamptz(6)
+  reservation_receipt_id        Int?
+  user_id                       Int
+  reservation_initiation_at     DateTime                  @default(now()) @db.Timestamptz(6)
+  user_selected_coupon_id       Int?
+  user_selected_plan_id         Int?
+  user_selected_subscription_id Int?
+  reservation_type_id           Int
+  tbl_reservation_receipts      tbl_reservation_receipts? @relation(fields: [reservation_receipt_id], references: [reservation_receipt_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_reservations_tbl_reservations_receipts_reservation_recei")
+  tbl_reservation_types         tbl_reservation_types     @relation(fields: [reservation_type_id], references: [reservation_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_reservations_tbl_reservation_types_reservation_type_id")
+  tbl_stations                  tbl_stations              @relation(fields: [reservation_station_id], references: [station_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_reservations_tbl_stations_reservation_station_id")
+  tbl_users                     tbl_users                 @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_reservations_tbl_users_user_id")
+  tbl_vehicles                  tbl_vehicles              @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_reservations_tbl_vehicles_vehicle_id")
+}
+
+model tbl_push_notification_tokens {
+  user_id                 Int
+  created_at              DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime  @default(now()) @db.Timestamptz(6)
+  push_notification_token String    @id @db.VarChar
+  tbl_users               tbl_users @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_push_notification_tokens_tbl_users_user_id")
+}
+
+model tbl_bookings_prev_state {
+  booking_id                    Int       @id
+  booking_status                String    @default("RIDING") @db.VarChar
+  vehicle_id                    Int
+  booking_start_station_id      Int
+  booking_end_station_id        Int?
+  booking_pause_time            Int       @default(0)
+  created_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime  @default(now()) @db.Timestamptz(6)
+  last_pause_at                 DateTime? @db.Timestamptz(6)
+  last_resume_at                DateTime? @db.Timestamptz(6)
+  booking_start_at              DateTime? @db.Timestamptz(6)
+  estimated_booking_end_at      DateTime? @db.Timestamptz(6)
+  booking_end_at                DateTime? @db.Timestamptz(6)
+  booking_receipt_id            Int?
+  user_id                       Int
+  booking_initiation_at         DateTime  @default(now()) @db.Timestamptz(6)
+  user_selected_coupon_id       Int?
+  user_selected_plan_id         Int?
+  user_selected_subscription_id Int?
+  booking_review_id             Int?
+}
+
+model tbl_vehicles_prev_state {
+  vehicle_id               Int       @id
+  vehicle_type_id          Int       @default(1)
+  vehicle_status           String    @default("MAINTAINANCE") @db.VarChar
+  battery                  Int       @default(100)
+  station_id               Int?
+  is_locked                Boolean   @default(false)
+  lat                      Float     @default(40)
+  lng                      Float     @default(50)
+  total_distance_travelled Float     @default(0)
+  is_disabled              Boolean?  @default(false)
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime  @default(now()) @db.Timestamptz(6)
+  disabled_at              DateTime? @db.Timestamptz(6)
+  disable_reason           String?   @db.VarChar
+  vehicle_number           String    @default("HS0004") @db.VarChar
+  image_urls               String?   @db.VarChar
+  ble_name                 String    @default("HOVER_MX0001") @db.VarChar
+  ble_service_uuid         String    @default(dbgenerated("'4fafc201-1fb5-459e-8fcc-c5c9c331914b'::uuid")) @db.Uuid
+  ble_token                String    @default("mx00011234567890") @db.VarChar
+  ble_uuid                 String    @default(dbgenerated("'beb5483e-36e1-4688-b7f5-ea07361b26a8'::uuid")) @db.Uuid
+  iot_imei                 String?   @db.VarChar
+  vehicle_code             String?   @db.VarChar
+}
+
+model tbl_iot_command_logs {
+  imei                 String            @id @default("abc") @db.VarChar
+  command              String            @db.VarChar
+  socket_uuid          String?           @db.VarChar
+  created_at           DateTime          @default(now()) @db.Timestamptz(6)
+  estimated_timeout_at DateTime?         @db.Timestamptz(6)
+  booking_log_id       Int?
+  retry                Int               @default(0)
+  tbl_booking_logs     tbl_booking_logs? @relation(fields: [booking_log_id], references: [booking_log_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_iot_command_logs_tbl_booking_logs_booking_log_id")
+}
+
+model tbl_delivery_booking_logs {
+  delivery_booking_log_id Int                   @id @default(autoincrement())
+  delivery_booking_id     Int
+  created_at              DateTime              @default(now()) @db.Timestamptz(6)
+  user_id                 Int
+  delivery_booking_action String                @db.VarChar
+  tbl_delivery_bookings   tbl_delivery_bookings @relation(fields: [delivery_booking_id], references: [delivery_booking_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_booking_logs_tbl_delivery_bookings_delivery_boo")
+  tbl_users               tbl_users             @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_booking_logs_tbl_users_user_id")
+}
+
+model tbl_delivery_bookings {
+  delivery_booking_id               Int                            @id @default(autoincrement())
+  delivery_booking_status           String                         @default("RIDING") @db.VarChar
+  vehicle_type_id                   Int
+  created_at                        DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                        DateTime                       @default(now()) @db.Timestamptz(6)
+  delivery_booking_start_at         DateTime?                      @db.Timestamptz(6)
+  estimated_delivery_booking_end_at DateTime?                      @db.Timestamptz(6)
+  delivery_booking_end_at           DateTime?                      @db.Timestamptz(6)
+  delivery_booking_receipt_id       Int?
+  user_id                           Int
+  delivery_booking_initiation_at    DateTime                       @default(now()) @db.Timestamptz(6)
+  delivery_booking_review_id        Int?
+  vehicle_id                        Int?
+  lat                               Float
+  lng                               Float
+  duration                          Int?
+  tbl_delivery_booking_logs         tbl_delivery_booking_logs[]
+  tbl_delivery_booking_receipts     tbl_delivery_booking_receipts? @relation(fields: [delivery_booking_receipt_id], references: [delivery_booking_receipt_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_bookings_tbl_delivery_booking_receipts_delivery")
+  tbl_users                         tbl_users                      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_bookings_tbl_users_user_id")
+  tbl_vehicle_types                 tbl_vehicle_types              @relation(fields: [vehicle_type_id], references: [vehicle_type_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_bookings_tbl_vehicle_types_vehicle_type_id")
+  tbl_vehicles                      tbl_vehicles?                  @relation(fields: [vehicle_id], references: [vehicle_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_delivery_bookings_tbl_vehicles_vehicle_id")
+}
+
+model tbl_delivery_booking_receipts {
+  delivery_booking_receipt_id   Int                            @id @default(autoincrement())
+  total_delivery_booking_time   Decimal                        @db.Decimal
+  total_ride_time               Decimal                        @db.Decimal
+  total_delivery_time           Decimal                        @db.Decimal
+  tax                           Decimal                        @default(0) @db.Decimal
+  delivery_charge               Decimal                        @default(0) @db.Decimal
+  ride_time_charge              Decimal                        @default(0) @db.Decimal
+  other_charge                  Decimal                        @default(0) @db.Decimal
+  minimum_charge_addition       Decimal                        @default(0) @db.Decimal
+  created_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime                       @default(now()) @db.Timestamptz(6)
+  final_delivery_booking_fare   Decimal                        @default(0) @db.Decimal
+  delivery_booking_start_at     DateTime?                      @db.Timestamptz(6)
+  delivery_booking_end_at       DateTime?                      @db.Timestamptz(6)
+  surge_charge                  Decimal?                       @db.Decimal
+  tax_rate                      Decimal?                       @db.Decimal
+  coupon_id                     Int?
+  plan_id                       Int?
+  subscription_id               Int?
+  initial_ride_time_fare        Decimal                        @db.Decimal
+  initial_delivery_time_fare    Decimal                        @db.Decimal
+  final_ride_time_fare          Decimal                        @db.Decimal
+  final_delivery_time_fare      Decimal                        @db.Decimal
+  inter_wallet_transaction_id   Int?
+  tbl_coupons                   tbl_coupons?                   @relation(fields: [coupon_id], references: [coupon_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_delivery_booking_receipts_tbl_coupons_coupon_id")
+  tbl_inter_wallet_transactions tbl_inter_wallet_transactions? @relation(fields: [inter_wallet_transaction_id], references: [inter_wallet_transaction_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_delivery_booking_receipts_tbl_inter_wallet_transactions_int")
+  tbl_plans                     tbl_plans?                     @relation(fields: [plan_id], references: [plan_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_delivery_booking_receipts_tbl_plans_plan_id")
+  tbl_subscriptions             tbl_subscriptions?             @relation(fields: [subscription_id], references: [subscription_id], onDelete: NoAction, onUpdate: NoAction, map: "tbl_delivery_booking_receipts_tbl_subscriptions_subscription_id")
+  tbl_delivery_bookings         tbl_delivery_bookings[]
+}
+
+model tbl_pm_policy_objects {
+  pm_policy_object_id Int            @id @default(autoincrement())
+  pm_policy_object    String         @db.VarChar
+  title               String         @db.VarChar
+  description         String?        @db.VarChar
+  is_disabled         Boolean?       @default(false)
+  created_at          DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime       @default(now()) @db.Timestamptz(6)
+  disabled_at         DateTime?      @db.Timestamptz(6)
+  disable_reason      String?        @db.VarChar
+  tbl_pm_users        tbl_pm_users[]
+}
+
+model tbl_pm_users {
+  pm_user_id            Int                    @id @default(autoincrement())
+  firebase_id           String                 @db.VarChar(128)
+  phone_number          String                 @db.VarChar
+  first_name            String?                @db.VarChar
+  last_name             String?                @db.VarChar
+  address1              String?                @db.VarChar
+  pm_policy_object_id   Int?
+  is_disabled           Boolean?               @default(false)
+  created_at            DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime               @default(now()) @db.Timestamptz(6)
+  disabled_at           DateTime?              @db.Timestamptz(6)
+  disable_reason        String?                @db.VarChar
+  tbl_pm_policy_objects tbl_pm_policy_objects? @relation(fields: [pm_policy_object_id], references: [pm_policy_object_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_pm_users_tbl_pm_policy_object_pm_policy_onject_id")
+}
+
+model tbl_ad_user_map {
+  ad_user_map_id Int              @id @default(autoincrement())
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?        @db.Timestamptz(6)
+  disabled_at    DateTime?        @db.Timestamptz(6)
+  disable_reason String?          @db.VarChar
+  title          String?          @db.VarChar
+  tbl_advertises tbl_advertises[]
+  tbl_users      tbl_users[]
+}
+
+model tbl_advertises {
+  advertise_id    Int              @id @default(autoincrement())
+  template_id     Int?
+  ad_user_map_id  Int?
+  is_disabled     Boolean?         @default(false)
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  disabled_at     DateTime?        @db.Timestamptz(6)
+  disable_reason  String?          @db.VarChar
+  image_urls      String?          @db.VarChar
+  title           String           @db.VarChar
+  description     String?          @db.VarChar
+  tbl_ad_user_map tbl_ad_user_map? @relation(fields: [ad_user_map_id], references: [ad_user_map_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tbl_advertises_tbl_advertises_ad_user_map_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tbl_iot_telemetry_data {
+  iot_imei                  String    @db.VarChar
+  timestamp                 DateTime  @db.Timestamptz(6)
+  iot_timestamp             DateTime? @db.Timestamptz(6)
+  latitude                  Decimal?  @db.Decimal(9, 6)
+  longitude                 Decimal?  @db.Decimal(10, 6)
+  internal_battery_voltage  Int?
+  internal_battery_current  Int?
+  internal_battery_percent  Int?      @db.SmallInt
+  external_voltage          Int?
+  external_extended_voltage Int?
+  speed                     Int?      @db.SmallInt
+  gsm_signal                Int?      @db.SmallInt
+  gsm_cell_id               Int?
+  gsm_area_code             Int?
+  iccid1                    String?   @db.VarChar(22)
+  iccid2                    String?   @db.VarChar(22)
+  iso6709_coordinates       String?
+  trip_odometer             BigInt?
+  total_odometer            BigInt?
+  movement                  Boolean?
+  sleep_mode                Int?      @db.SmallInt
+  analog_input_1            Int?
+  analog_input_2            Int?
+  extended_analog_input_1   Int?
+  extended_analog_input_2   Int?
+  x_axis                    Int?
+  y_axis                    Int?
+  z_axis                    Int?
+  digital_input_1           Int?
+  digital_input_2           Int?
+  digital_input_3           Int?
+  digital_input_4           Int?
+  digital_output_1          Int?
+  digital_output_2          Int?
+  dout1_overcurrent         Int?
+  dout2_overcurrent         Int?
+  instant_movement          Int?
+
+  @@id([iot_imei, timestamp])
+  @@index([timestamp(sort: Desc)], map: "idx_tbl_iot_telemetry_data_timestamp")
+}
