@@ -5,8 +5,8 @@
 const CONSTANTS = {
     SERVER_PORT:1111,
     MAX_DEVICE_CONNECTIONS:10000,
-    SOCKET_KEEPALIVE: 60000, // 60 seconds
-    SOCKET_TIMEOUT: 30000, // 30 seconds
+    SOCKET_KEEPALIVE: 600000, // 10 minutes in ms
+    SOCKET_TIMEOUT: 600000, // 30 seconds in ms
     API_PORT: 8090,
     TFT100:{
         CODECS: {
