@@ -171,7 +171,7 @@ const IOTService = {
       console.log('NOTIFY:CommandSuccess', data);
       const backendUrl = CONSTANTS.NOTIFICATION_URL;
       if (backendUrl) {
-        await axios.post(`${backendUrl}/iot/v1/command/confirm`, data);
+        await axios.post(`${backendUrl}/webhooks/iot/v1/command/confirm`, data);
       }
     } catch (error) {
       console.error('IOTService:notifyCommandSuccess:error', error.message);
@@ -187,7 +187,7 @@ const IOTService = {
       console.log('NOTIFY:BulkCommandFailure', { count: entries.length, entries });
       const backendUrl = CONSTANTS.NOTIFICATION_URL;
       if (backendUrl) {
-        await axios.post(`${backendUrl}/iot/v1/command/bulk_failure`, { entries });
+        await axios.post(`${backendUrl}/webhooks/iot/v1/command/bulk_failure`, { entries });
       }
     } catch (error) {
       console.error('IOTService:notifyBulkCommandFailure:error', error.message);
@@ -202,7 +202,7 @@ const IOTService = {
       console.log('NOTIFY:CommandFailure', data);
       const backendUrl = CONSTANTS.NOTIFICATION_URL;
       if (backendUrl) {
-        await axios.post(`${backendUrl}/iot/v1/command/failure`, data);
+        await axios.post(`${backendUrl}/webhooks/iot/v1/command/failure`, data);
       }
     } catch (error) {
       console.error('IOTService:notifyCommandFailure:error', error.message);
