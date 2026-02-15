@@ -2,6 +2,7 @@ const db = require('../db');
 const moment = require('moment');
 const { CONSTANTS } = require('../constants');
 const deviceManager = require('./deviceManagement.service');
+const axios = require('axios');
 
 const IOTService = {
   /**
@@ -10,13 +11,14 @@ const IOTService = {
    * @param {String} param0.imei
    * @param {String} param0.command
    */
-  sendCommand: async ({ imei, command }) => {
+  sendCommand: async ({ imei, command, booking_log_id }) => {
     try {
       console.log("info", {
         message: "IOTService:sendCommand:params",
         params: {
           imei,
           command,
+          booking_log_id,
           // imei_to_socket: Object.keys(global.imei_to_socket), // global.imei_to_socket not defined in this context, accessing deviceManager
         },
       });
@@ -34,7 +36,7 @@ const IOTService = {
           imei, 
           command, 
           moment().add(CONSTANTS.IOT_COMMAND_TIMEOUT, "seconds").toDate(), 
-          null
+          booking_log_id
         ]
       );
 
@@ -65,6 +67,7 @@ const IOTService = {
             params: {
                 imei,
                 command,
+              booking_log_id,
             },
             });
             return true;
@@ -164,7 +167,15 @@ const IOTService = {
    * data.identified = true when log entry was found, false for unidentified responses.
    */
   notifyCommandSuccess: async (data) => {
-    console.log('NOTIFY:CommandSuccess', data);
+    try {
+      console.log('NOTIFY:CommandSuccess', data);
+      const backendUrl = process.env.BACKEND_URL;
+      if (backendUrl) {
+        await axios.post(`${backendUrl}/iot/v1/command/confirm`, data);
+      }
+    } catch (error) {
+      console.error('IOTService:notifyCommandSuccess:error', error.message);
+    }
   },
 
   /**
@@ -172,7 +183,30 @@ const IOTService = {
    * Receives array of failed command entries with booking_action.
    */
   notifyBulkCommandFailure: async (entries) => {
-    console.log('NOTIFY:BulkCommandFailure', { count: entries.length, entries });
+    try {
+      console.log('NOTIFY:BulkCommandFailure', { count: entries.length, entries });
+      const backendUrl = CONSTANTS.NOTIFICATION_URL;
+      if (backendUrl) {
+        await axios.post(`${backendUrl}/iot/v1/command/bulk_failure`, { entries });
+      }
+    } catch (error) {
+      console.error('IOTService:notifyBulkCommandFailure:error', error.message);
+    }
+  },
+
+  /**
+   * Notification: single command failure (explicit NACK or other error).
+   */
+  notifyCommandFailure: async (data) => {
+    try {
+      console.log('NOTIFY:CommandFailure', data);
+      const backendUrl = CONSTANTS.NOTIFICATION_URL;
+      if (backendUrl) {
+        await axios.post(`${backendUrl}/iot/v1/command/failure`, data);
+      }
+    } catch (error) {
+      console.error('IOTService:notifyCommandFailure:error', error.message);
+    }
   },
 
   /**

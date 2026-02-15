@@ -3,11 +3,14 @@
 // CONFIGURATION & CONSTANTS
 // ============================================================================
 const CONSTANTS = {
-    SERVER_PORT:1111,
+
+    SERVER_PORT: 9000,
     MAX_DEVICE_CONNECTIONS:10000,
     SOCKET_KEEPALIVE: 600000, // 10 minutes in ms
     SOCKET_TIMEOUT: 600000, // 30 seconds in ms
-    API_PORT: 8090,
+    API_PORT: 8091,
+    API_KEY: "1234567890",
+    NOTIFICATION_URL: `http://localhost:8090`,
     TFT100:{
         CODECS: {
             GH3000: 0x07,
