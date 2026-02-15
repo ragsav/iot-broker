@@ -10,7 +10,7 @@ const CONSTANTS = {
     SOCKET_TIMEOUT: 600000, // 30 seconds in ms
     API_PORT: 8091,
     API_KEY: "1234567890",
-    NOTIFICATION_URL: `http://localhost:8090`,
+    NOTIFICATION_URL: `https://select-casual-civet.ngrok-free.app`,
     TFT100:{
         CODECS: {
             GH3000: 0x07,

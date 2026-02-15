@@ -222,7 +222,7 @@ const IOTService = {
       
       const query = `
         INSERT INTO tbl_iot_telemetry_data (
-            iot_imei, timestamp, latitude, longitude, speed, 
+            iot_imei, iot_timestamp, timestamp, latitude, longitude, speed,
             internal_battery_voltage, internal_battery_current, internal_battery_percent,
             external_voltage, external_extended_voltage, analog_input_1, analog_input_2,
             trip_odometer, total_odometer, x_axis, y_axis, z_axis,
@@ -232,10 +232,10 @@ const IOTService = {
             extended_analog_input_1, extended_analog_input_2, instant_movement,
             iso6709_coordinates, gsm_signal
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+            $1, $2, NOW(), $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
             $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33
         )
-        ON CONFLICT (iot_imei, timestamp) DO NOTHING;
+        ON CONFLICT (iot_imei, iot_timestamp) DO NOTHING;
       `;
 
       let latestRecord = null;
