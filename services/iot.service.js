@@ -169,7 +169,7 @@ const IOTService = {
   notifyCommandSuccess: async (data) => {
     try {
       console.log('NOTIFY:CommandSuccess', data);
-      const backendUrl = process.env.BACKEND_URL;
+      const backendUrl = CONSTANTS.NOTIFICATION_URL;
       if (backendUrl) {
         await axios.post(`${backendUrl}/iot/v1/command/confirm`, data);
       }
