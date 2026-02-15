@@ -96,7 +96,7 @@ class PacketHandler {
             sourceIP: socket.remoteAddress
         };
 
-        console.log('[QUEUE] Message to be processed:', JSON.stringify(payload, null, 2));
+        console.log('[QUEUE] Message ready to be sent to queue:', JSON.stringify(payload).substring(0, 50));
 
         // Save telemetry to DB and update vehicle status via IOTService
         if (decoded.records && decoded.records.length > 0) {
