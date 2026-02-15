@@ -4,7 +4,7 @@
 // ============================================================================
 const CONSTANTS = {
 
-    SERVER_PORT: 9000,
+    BROKER_PORT: 9000,
     MAX_DEVICE_CONNECTIONS:10000,
     SOCKET_KEEPALIVE: 600000, // 10 minutes in ms
     SOCKET_TIMEOUT: 600000, // 30 seconds in ms

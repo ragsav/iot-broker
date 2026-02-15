@@ -19,7 +19,7 @@ server.on('error', (err) => {
     console.error('[SERVER] Server error:', err);
 
     if (err.code === 'EADDRINUSE') {
-        console.error(`[SERVER] Port ${CONSTANTS.SERVER_PORT} is already in use`);
+        console.error(`[SERVER] Port ${CONSTANTS.BROKER_PORT} is already in use`);
         process.exit(1);
     }
 });
@@ -35,11 +35,11 @@ async function main() {
     await startApiServer();
 
     // Start TCP Server
-    server.listen(CONSTANTS.SERVER_PORT, () => {
+    server.listen(CONSTANTS.BROKER_PORT, () => {
         console.log('='.repeat(70));
         console.log('  TELTONIKA TFT100 GATEWAY SERVER');
         console.log('='.repeat(70));
-        console.log(`  Port: ${CONSTANTS.SERVER_PORT}`);
+        console.log(`  Port: ${CONSTANTS.BROKER_PORT}`);
         console.log(`  Max Connections: ${CONSTANTS.MAX_DEVICE_CONNECTIONS}`);
         console.log(`  Socket Timeout: ${CONSTANTS.SOCKET_TIMEOUT}ms`);
         console.log('='.repeat(70));
