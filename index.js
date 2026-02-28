@@ -37,7 +37,7 @@ async function main() {
     // Start TCP Server
     server.listen(CONSTANTS.BROKER_PORT, () => {
         console.log('='.repeat(70));
-        console.log('  TELTONIKA TFT100 GATEWAY SERVER');
+        console.log('  IOT-BROKER SERVER');
         console.log('='.repeat(70));
         console.log(`  Port: ${CONSTANTS.BROKER_PORT}`);
         console.log(`  Max Connections: ${CONSTANTS.MAX_DEVICE_CONNECTIONS}`);

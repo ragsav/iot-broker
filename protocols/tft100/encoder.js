@@ -1,5 +1,6 @@
 const BaseEncoder = require('../baseEncoder');
 const { CONSTANTS } = require('../../constants');
+const { PROTOCOL_CONSTANTS } = require('../protocol.constants');
 
 class Tft100Encoder extends BaseEncoder {
     encode(data) {
@@ -30,7 +31,7 @@ class Tft100Encoder extends BaseEncoder {
         const dataBuffer = Buffer.alloc(dataLength);
         
         let offset = 0;
-        dataBuffer.writeUInt8(CONSTANTS.TFT100.CODECS.CODEC_12, offset++); // Codec ID
+        dataBuffer.writeUInt8(PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_12, offset++); // Codec ID
         dataBuffer.writeUInt8(1, offset++); // Command Quantity 1
         dataBuffer.writeUInt8(5, offset++); // Type (5 = Command, 6 = Response)
         dataBuffer.writeUInt32BE(cmdSize, offset); offset += 4; // Command Size

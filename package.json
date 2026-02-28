@@ -1,5 +1,5 @@
 {
-  "name": "hover_iot",
+  "name": "iot-connect",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {

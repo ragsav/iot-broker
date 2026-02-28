@@ -1,5 +1,6 @@
 const BaseDecoder = require('../baseDecoder');
 const { CONSTANTS } = require('../../constants');
+const { PROTOCOL_CONSTANTS } = require('../protocol.constants');
 
 
 class Tft100Decoder extends BaseDecoder {
@@ -24,7 +25,7 @@ class Tft100Decoder extends BaseDecoder {
     decodeLogin(buffer) {
         const imei = buffer.toString('ascii', 2, 17);
         return {
-            type: CONSTANTS.TFT100.PACKET_TYPE.LOGIN,
+            type: PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.LOGIN,
             imei: imei
         };
     }
@@ -41,7 +42,7 @@ class Tft100Decoder extends BaseDecoder {
         const count = buffer.readUInt8(offset);
         offset++;
 
-        if (codecId === CONSTANTS.TFT100.CODECS.CODEC_12) {
+        if (codecId === PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_12) {
             return this.decodeCommandResponse(buffer, offset, count);
         }
 
@@ -58,7 +59,7 @@ class Tft100Decoder extends BaseDecoder {
         }
 
         return {
-            type: CONSTANTS.TFT100.PACKET_TYPE.DATA,
+            type: PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.DATA,
             codec: codecId,
             count: count,
             records: records
@@ -155,7 +156,7 @@ class Tft100Decoder extends BaseDecoder {
         }
 
         // X-byte IO (Codec 8 Ext)
-        if (codecId === CONSTANTS.TFT100.CODECS.CODEC_8_EXT) {
+        if (codecId === PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_8_EXT) {
              const countXByte = buffer.readUInt16BE(offset);
              offset += 2;
              for (let i = 0; i < countXByte; i++) {
@@ -252,8 +253,8 @@ class Tft100Decoder extends BaseDecoder {
         offset++; 
 
         return {
-            type: CONSTANTS.TFT100.PACKET_TYPE.RESPONSE,
-            codec: CONSTANTS.TFT100.CODECS.CODEC_12,
+            type: PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.RESPONSE,
+            codec: PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_12,
             respType: type, // 5=Command, 6=Response
             data: commandData
         };
@@ -263,7 +264,7 @@ class Tft100Decoder extends BaseDecoder {
         if (offset >= buffer.length) {
             throw new Error(`Buffer overflow: offset ${offset} >= ${buffer.length}`);
         }
-        if (codecId === CONSTANTS.TFT100.CODECS.CODEC_8_EXT) {
+        if (codecId === PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_8_EXT) {
             return buffer.readUInt16BE(offset);
         } else {
             return buffer.readUInt8(offset);
@@ -271,7 +272,7 @@ class Tft100Decoder extends BaseDecoder {
     }
     
     getExtByteSize(codecId) {
-        return codecId === CONSTANTS.TFT100.CODECS.CODEC_8_EXT ? 2 : 1;
+        return codecId === PROTOCOL_CONSTANTS.TFT100.CODECS.CODEC_8_EXT ? 2 : 1;
     }
 }
 
