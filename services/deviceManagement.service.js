@@ -1,3 +1,5 @@
+const DeviceDao = require('../dao/device.dao');
+
 class DeviceManager {
     constructor() {
         this.deviceSockets = new Map(); // imei -> socket
@@ -27,11 +29,21 @@ class DeviceManager {
         // Only increment active connections if it's a new socket (handled by server, but tracking here for consistency if needed)
         // Since activeConnections is incremented on connection, we don't double count here ideally, 
         // but for this class let's just track authenticated devices via map size.
+
+        // Update DB status
+        DeviceDao.updateStatus(imei, 'online').catch(err => {
+            console.error('[DB] Failed to update device status to online:', err.message);
+        });
     }
 
     removeConnection(socket) {
         if (socket.imei) {
             this.deviceSockets.delete(socket.imei);
+
+            // Update DB status
+            DeviceDao.updateStatus(socket.imei, 'offline').catch(err => {
+                console.error('[DB] Failed to update device status to offline:', err.message);
+            });
         }
         this.socketMetadata.delete(socket);
     }

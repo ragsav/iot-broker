@@ -5,6 +5,7 @@ const deviceManager = require('../services/deviceManagement.service');
 const IOTService = require('../services/iot.service');
 const TelemetryService = require('../services/telemetry.service');
 const { PROTOCOL_CONSTANTS } = require('../protocols/protocol.constants');
+const deviceCache = require('../services/deviceCache.service');
 
 class PacketHandler {
     constructor() {
@@ -51,6 +52,13 @@ class PacketHandler {
         // Validate IMEI (Basic check)
         if (!imei || !/^\d{15}$/.test(imei)) {
             console.error('[LOGIN] Invalid IMEI format:', imei);
+            socket.destroy();
+            return;
+        }
+
+        // Validate IMEI against cache
+        if (!deviceCache.isDeviceAuthorized(imei)) {
+            console.error('[LOGIN] Unauthorized device attempted connection:', imei);
             socket.destroy();
             return;
         }

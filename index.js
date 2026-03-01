@@ -6,6 +6,7 @@ const setupSocket = require('./handlers/socket.handler');
 const startApiServer = require('./api');
 const CronJobScheduler = require('./jobs/cron.job');
 const db = require('./db');
+const deviceCache = require('./services/deviceCache.service');
 
 // ============================================================================
 // SERVER SETUP
@@ -27,6 +28,9 @@ server.on('error', (err) => {
 async function main() {
     // Test DB connection first
     await db.testConnection();
+
+    // Load devices into cache
+    await deviceCache.loadFromDB();
 
     // Start Cron Jobs
     CronJobScheduler.revertTimedOutIOTCommandsCronjob();
