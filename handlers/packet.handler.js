@@ -1,21 +1,14 @@
 
-const Tft100Decoder = require('../protocols/tft100/decoder');
-const Tft100Encoder = require('../protocols/tft100/encoder');
+const { CONSTANTS } = require('../constants');
 const deviceManager = require('../services/deviceManagement.service');
 const IOTService = require('../services/iot.service');
 const TelemetryService = require('../services/telemetry.service');
-const { PROTOCOL_CONSTANTS } = require('../protocols/protocol.constants');
-const deviceCache = require('../services/deviceCache.service');
 
 class PacketHandler {
-    constructor() {
-        this.decoder = new Tft100Decoder();
-        this.encoder = new Tft100Encoder();
-    }
 
     handlePacket(socket, packet) {
         try {
-            const decoded = this.decoder.decode(packet);
+            const decoded = socket.protocol.decoder.decode(packet);
 
             if (!decoded) {
                 console.warn('[PACKET] Failed to decode packet');
@@ -23,13 +16,13 @@ class PacketHandler {
             }
 
             switch (decoded.type) {
-                case PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.LOGIN:
+                case CONSTANTS.TFT100.PACKET_TYPE.LOGIN:
                     this.handleLogin(socket, decoded);
                     break;
-                case PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.DATA:
+                case CONSTANTS.TFT100.PACKET_TYPE.DATA:
                     this.handleData(socket, decoded);
                     break;
-                case PROTOCOL_CONSTANTS.TFT100.PACKET_TYPE.RESPONSE:
+                case CONSTANTS.TFT100.PACKET_TYPE.RESPONSE:
                     this.handleResponse(socket, decoded);
                     break;
                 default:
@@ -52,13 +45,6 @@ class PacketHandler {
         // Validate IMEI (Basic check)
         if (!imei || !/^\d{15}$/.test(imei)) {
             console.error('[LOGIN] Invalid IMEI format:', imei);
-            socket.destroy();
-            return;
-        }
-
-        // Validate IMEI against cache
-        if (!deviceCache.isDeviceAuthorized(imei)) {
-            console.error('[LOGIN] Unauthorized device attempted connection:', imei);
             socket.destroy();
             return;
         }
@@ -109,11 +95,12 @@ class PacketHandler {
 
         // Save telemetry to DB and update vehicle status via TelemetryService
         if (decoded.records && decoded.records.length > 0) {
-            TelemetryService.handleTelemetry(socket.imei, decoded.records);
+            TelemetryService.saveIOTTelemetryData(socket.imei, decoded.records)
+                .catch(err => console.error('[DATA] Telemetry save failed:', err));
         }
 
         // Send ACK (4-byte record count in big-endian)
-        const ack = this.encoder.encodeDataResponse(decoded.count);
+        const ack = socket.protocol.encoder.encodeDataResponse(decoded.count);
         socket.write(ack);
 
         console.log('[DATA] ✓ ACK sent:', {
@@ -139,7 +126,7 @@ class PacketHandler {
             IOTService.confirmCommandExecution({
                 imei: socket.imei,
                 command: decoded.data
-            });
+            }).catch(err => console.error('[RESPONSE] Command confirmation failed:', err));
         }
     }
 }

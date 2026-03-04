@@ -1,33 +1,33 @@
 
-const Tft100Framer = require('../protocols/tft100/framer');
+const { createProtocolAdapter } = require('../protocols/registry');
 const packetHandler = require('./packet.handler');
 const deviceManager = require('../services/deviceManagement.service');
 const {  CONSTANTS } = require('../constants');
 
-function setupSocket(socket) {
+function setupSocket(socket, protocolName = 'tft100') {
     const socketId = `${socket.remoteAddress}:${socket.remotePort}`;
 
     // Initialize socket state
     socket.authenticated = false;
     socket.imei = null;
-    socket.setKeepAlive(true, CONSTANTS.SOCKET_KEEPALIVE); // 60 seconds
+    socket.setKeepAlive(true, CONSTANTS.SOCKET_KEEPALIVE);
     socket.setTimeout(CONSTANTS.SOCKET_TIMEOUT);
+
+    // Attach protocol adapter (framer + decoder + encoder)
+    socket.protocol = createProtocolAdapter(protocolName);
 
     console.log('[SOCKET] New connection:', socketId);
 
-    // Create framer for this socket
-    const framer = new Tft100Framer();
-
-    // Pipe socket data through framer
-    socket.pipe(framer);
+    // Pipe socket data through the protocol's framer
+    socket.pipe(socket.protocol.framer);
 
     // Handle framed packets
-    framer.on('data', (packet) => {
+    socket.protocol.framer.on('data', (packet) => {
         packetHandler.handlePacket(socket, packet);
     });
 
     // Handle framer errors
-    framer.on('error', (err) => {
+    socket.protocol.framer.on('error', (err) => {
         console.error('[FRAMER] Error:', err.message);
     });
 
@@ -41,8 +41,10 @@ function setupSocket(socket) {
 
         if (!socket.authenticated) {
             console.warn('[SOCKET] Closing unauthenticated connection due to timeout');
-            socket.destroy();
+        } else {
+            console.warn('[SOCKET] Closing authenticated connection due to timeout:', socket.imei);
         }
+        socket.destroy();
     });
 
     // Handle socket errors
@@ -68,8 +70,8 @@ function setupSocket(socket) {
         }
         
         // Clean up framer
-        framer.end();
-        framer.destroy();
+        socket.protocol.framer.end();
+        socket.protocol.framer.destroy();
     });
 }
 

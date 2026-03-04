@@ -1,92 +1,109 @@
 const db = require('../db');
-const IotCommandDao = require('../dao/iotCommand.dao');
 const moment = require('moment');
 const { CONSTANTS } = require('../constants');
 const deviceManager = require('./deviceManagement.service');
 const NotificationService = require('./notification.service');
 
+const { COMMAND_STATUS } = CONSTANTS;
+
+/**
+ * Validates whether a received response matches what's expected for a given command.
+ * Configurable via VALIDATE_COMMAND_RESPONSE env flag.
+ * @param {string} sentCommand - The command that was sent (e.g. "setdigout 1?")
+ * @param {string} responseStr - The response received from the device
+ * @returns {{ valid: boolean, expected: string[]|null }} 
+ */
+function isValidCommandResponse(sentCommand, responseStr) {
+  console.log("info", {
+    message: "IOTService:isValidCommandResponse:params",
+    params: {
+      sentCommand,
+      responseStr,
+    },
+  });
+  if (!CONSTANTS.VALIDATE_COMMAND_RESPONSE) {
+    return { valid: true, expected: null };
+  }
+
+  const expectedCmd = Object.values(CONSTANTS.IOT_COMMANDS)
+    .find(c => c.command == sentCommand);
+
+  // If command isn't in IOT_COMMANDS (e.g. custom/raw command), skip validation
+  if (!expectedCmd) {
+    return { valid: true, expected: null };
+  }
+
+  let v = false;
+  expectedCmd.response.forEach(r => {
+    if (responseStr.includes(r)) {
+      v = true;
+    }
+  });
+
+  return {
+    valid: v,
+    expected: expectedCmd.response,
+  };
+}
+
 class IOTService {
   /**
-   *
+   * Send a command to a device.
    * @param {object} param0
-   * @param {String} param0.imei
-   * @param {String} param0.command
+   * @param {String} param0.imei - Device IMEI
+   * @param {String} param0.command - Command string to send
+   * @param {Object} [param0.metadata] - Optional metadata (JSON) to round-trip through webhooks
    */
-  static async sendCommand({ imei, command, booking_log_id, force = false }) {
+  static async sendCommand({ imei, command, metadata }) {
     try {
       console.log("info", {
         message: "IOTService:sendCommand:params",
         params: {
           imei,
           command,
-          booking_log_id,
-          force
+          metadata,
         },
       });
 
       const socket = deviceManager.getSocket(imei);
 
-      if (!force) {
-        // Check if there are any pending commands
-        const hasPending = await IotCommandDao.hasPendingCommands(imei);
-
-        if (hasPending) {
-          console.log("warn", {
-            message: "IOTService:sendCommand:pending-exists",
-            params: { imei },
-          });
-          throw new Error("A command is already pending for this device. Use force=true to override.");
-        }
-      }
-
+      // Mark any existing PENDING commands for this IMEI as FAILED (superseded)
       try {
-        await IotCommandDao.insertCommand({
+        await db.query(
+          `UPDATE tbl_iot_command_logs 
+           SET status = $1, updated_at = NOW(), completed_at = NOW() 
+           WHERE imei = $2 AND status = $3`,
+          [COMMAND_STATUS.FAILED, imei, COMMAND_STATUS.PENDING]
+        );
+      } catch (error) { }
+
+      await db.query(
+        `INSERT INTO tbl_iot_command_logs (imei, command, estimated_timeout_at, metadata, status) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
           imei,
-          command,
-          estimated_timeout_at: moment().add(CONSTANTS.IOT_COMMAND_TIMEOUT, "seconds").toDate(),
-          booking_log_id,
-          status: CONSTANTS.COMMAND_STATUS.PENDING
-        });
-      } catch (error) {
-        console.error("error", {
-          message: "IOTService:sendCommand:db-insert-error",
-          params: { error },
-        });
-      }
+          command, 
+          moment().add(CONSTANTS.IOT_COMMAND_TIMEOUT, "seconds").toDate(),
+          metadata ? JSON.stringify(metadata) : null,
+          COMMAND_STATUS.PENDING
+        ]
+      );
 
       if (socket) {
-        // We need to encode the command. 
-        // The original snippet used: socket?.write(Buffer.from(generateCodec12(command), "hex"));
-        // I will use the encoder from protocols which I will verify.
-        // For now, assuming standard Codec12 string command.
-        // If generateCodec12 is not available, we construct it.
-        // Codec12: 0x00000000 (preamble) + Data Size + CodecID(0x0C) + Command Count(1) + Type(5) + CmdSize + Command + Count(1) + CRC
-        // Actually, the snippet said `Buffer.from(generateCodec12(command), "hex")` implies generateCodec12 returns a hex string.
-        
-        // Let's perform the write using the encoder we have or will update.
-        // deviceManager.sendCommand already handles encoding! 
-        // But the snippet does it manually.
-        // deviceManager.sendCommand(imei, command) uses Tft100Encoder.
-        // So I can just call deviceManager.sendCommand? 
-        // BUT, the snippet wants to LOG first, then delete logs, then CREATE log, THEN send.
-        // deviceManager.sendCommand does not do DB logs.
-        // So I will use deviceManager.sendCommand BUT I need to ensure it doesn't double send or I replicate its logic.
-        // deviceManager.sendCommand sends the packet.
-        
         const sent = deviceManager.sendCommand(imei, command);
         
         if (sent) {
-            console.log("success", {
+          console.log("success", {
             message: "IOTService:sendCommand:command sent",
             params: {
-                imei,
-                command,
-              booking_log_id,
+              imei,
+              command,
+              metadata,
             },
-            });
-            return true;
+          });
+          return true;
         } else {
-             throw CONSTANTS.ERROR_CODES.SERVER_ERROR;
+          throw CONSTANTS.ERROR_CODES.SERVER_ERROR;
         }
       } else {
         console.log("error", {
@@ -106,49 +123,69 @@ class IOTService {
   }
 
   /**
-   *
+   * Confirm that a command response was received from a device.
    * @param {object} param0
-   * @param {String} param0.imei
-   * @param {String} param0.command // Response string
+   * @param {String} param0.imei - Device IMEI
+   * @param {String} param0.command - Response string from the device
    */
   static async confirmCommandExecution({ imei, command }) {
     try {
-        const responseStr = command; // usage in snippet
+      const responseStr = command;
       console.log("info", {
         message: "IOTService:confirmCommandExecution:params",
         params: { imei, content: responseStr },
       });
 
-      // We find the EARLIEST PENDING command for this IMEI
-      const logEntry = await IotCommandDao.findEarliestPendingCommand(imei);
+      const res = await db.query(
+        'SELECT * FROM tbl_iot_command_logs WHERE imei = $1 AND status = $2',
+        [imei, COMMAND_STATUS.PENDING]
+      );
+      const iotCommandLogEntry = res.rows[0];
 
-      if (!logEntry) return;
+      if (!iotCommandLogEntry) return;
 
-      // Update to COMPLETED instead of deleting
-      await IotCommandDao.updateCommandStatus(logEntry.id, CONSTANTS.COMMAND_STATUS.COMPLETED);
+      // Validate response matches the pending command (catches stale responses)
+      const validation = isValidCommandResponse(iotCommandLogEntry.command, responseStr);
+      if (!validation.valid) {
+        console.warn("IOTService:confirmCommandExecution:response_mismatch", {
+          imei,
+          expected: validation.expected,
+          received: responseStr,
+          pendingCommand: iotCommandLogEntry.command,
+        });
+        return; // Don't mark complete — stale response from previous command
+      }
+
+      // Mark as COMPLETED with response
+      await db.query(
+        `UPDATE tbl_iot_command_logs 
+         SET status = $1, response = $2, updated_at = NOW(), completed_at = NOW() 
+         WHERE command_log_id = $3`,
+        [COMMAND_STATUS.COMPLETED, responseStr, iotCommandLogEntry.command_log_id]
+      );
 
       console.log("info", {
         message: "IOTService:confirmCommandExecution:iotCommandLogEntry",
         params: {
           imei,
           responseStr: responseStr,
-          iotCommandLogEntryTime: logEntry?.created_at,
+          iotCommandLogEntryTime: iotCommandLogEntry.created_at,
         },
       });
 
-      // Notify command success
       await NotificationService.notifyCommandSuccess({
         identified: true,
-        imei: logEntry.imei,
-        command: logEntry.command,
+        imei: iotCommandLogEntry.imei,
+        command: iotCommandLogEntry.command,
         response: responseStr,
-        booking_log_id: logEntry.booking_log_id || null,
+        metadata: iotCommandLogEntry.metadata || null,
       });
 
       console.log("success", {
         message: "IOTService:confirmCommandExecution:success",
         params: {
-          imei: logEntry.imei,
+          imei: iotCommandLogEntry.imei,
+          metadata: iotCommandLogEntry.metadata,
         },
       });
     } catch (error) {
@@ -159,32 +196,24 @@ class IOTService {
     }
   }
 
-
-
   static async revertTimeoutCommands() {
-    let client;
     try {
       console.log("info", {
         message: "IOTService:revertTimeoutCommands:init",
       });
 
-      client = await db.pool.connect();
-      await client.query('BEGIN');
+      const res = await db.query(`
+        SELECT * FROM tbl_iot_command_logs
+        WHERE estimated_timeout_at < NOW() AND status = $1
+      `, [COMMAND_STATUS.PENDING]);
 
-      // Find commands that have timed out and lock them to avoid race conditions across instances
-      const iotCommandLogEntries = await IotCommandDao.lockTimedOutPendingCommands(client);
-
-      if (iotCommandLogEntries.length === 0) {
-        await client.query('COMMIT');
-        client.release();
-        return;
-      }
+      const iotCommandLogEntries = res.rows;
 
       const toRetry = [];
       const toFail = [];
 
       for (const entry of iotCommandLogEntries) {
-        if ((entry.retry || 0) >= CONSTANTS.DEFAULT_MAX_IOT_COMMAND_RETRY) {
+        if (entry.retry >= CONSTANTS.DEFAULT_MAX_IOT_COMMAND_RETRY) {
           toFail.push(entry);
         } else {
           toRetry.push(entry);
@@ -193,13 +222,15 @@ class IOTService {
 
       // Handle Retries
       if (toRetry.length > 0) {
-        const ids = toRetry.map(e => e.id);
+        const commandLogIds = toRetry.map(e => e.command_log_id);
         const newTimeout = moment().add(CONSTANTS.IOT_COMMAND_TIMEOUT, "seconds").toDate();
 
-        // Bulk Update
-        await IotCommandDao.incrementRetriesBulk(client, ids, newTimeout);
+        await db.query(`
+          UPDATE tbl_iot_command_logs 
+          SET retry = retry + 1, estimated_timeout_at = $1, updated_at = NOW()
+          WHERE command_log_id = ANY($2::bigint[])
+        `, [newTimeout, commandLogIds]);
 
-        // Sequential device send
         const sentImeis = [];
         const failedImeis = [];
 
@@ -218,31 +249,29 @@ class IOTService {
           },
         });
 
-        // Bulk retry notification
         await NotificationService.notifyBulkCommandRetry(toRetry);
       }
 
-      // Handle Failures
+      // Handle Failures — mark as FAILED instead of deleting
       if (toFail.length > 0) {
-        const ids = toFail.map(e => e.id);
+        const commandLogIds = toFail.map(e => e.command_log_id);
 
-        // Bulk Update to FAILED
-        await IotCommandDao.updateStatusBulk(client, ids, CONSTANTS.COMMAND_STATUS.FAILED);
+        await db.query(`
+          UPDATE tbl_iot_command_logs
+          SET status = $1, updated_at = NOW(), completed_at = NOW()
+          WHERE command_log_id = ANY($2::bigint[])
+        `, [COMMAND_STATUS.FAILED, commandLogIds]);
 
-        // Bulk Log
         console.log("warn", {
           message: "IOTService:revertTimeoutCommands:failed_bulk",
           params: {
             total: toFail.length,
-            imeis: imeis
+            imeis: toFail.map(e => e.imei)
           },
         });
 
-        // Bulk failure notification
         await NotificationService.notifyBulkCommandFailure(toFail);
       }
-
-      await client.query('COMMIT');
 
       console.log("success", {
         message: "IOTService:revertTimeoutCommands:success",
@@ -253,13 +282,10 @@ class IOTService {
       });
 
     } catch (error) {
-      if (client) await client.query('ROLLBACK');
       console.log("error", {
         message: "IOTService:revertTimeoutCommands:catch-1",
         params: { error: error.message },
       });
-    } finally {
-      if (client) client.release();
     }
   }
 }

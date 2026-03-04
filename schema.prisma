@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model tbl_iot_command_logs {
+  command_log_id       BigInt    @id @default(autoincrement())
+  imei                 String    @default("abc") @db.VarChar
+  command              String    @db.VarChar
+  socket_uuid          String?   @db.VarChar
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  estimated_timeout_at DateTime? @db.Timestamptz(6)
+  retry                Int       @default(0)
+  status               String    @default("PENDING") @db.VarChar
+  response             String?   @db.VarChar
+  completed_at         DateTime? @db.Timestamptz(6)
+  metadata             Json?
+
+  @@index([imei, status], map: "idx_iot_command_logs_imei_status")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tbl_iot_telemetry_data {
+  iot_imei                  String    @db.VarChar
+  timestamp                 DateTime  @db.Timestamptz(6)
+  iot_timestamp             DateTime? @db.Timestamptz(6)
+  latitude                  Decimal?  @db.Decimal(9, 6)
+  longitude                 Decimal?  @db.Decimal(10, 6)
+  internal_battery_voltage  Int?
+  internal_battery_current  Int?
+  internal_battery_percent  Int?      @db.SmallInt
+  external_voltage          Int?
+  external_extended_voltage Int?
+  speed                     Int?      @db.SmallInt
+  gsm_signal                Int?      @db.SmallInt
+  gsm_cell_id               Int?
+  gsm_area_code             Int?
+  iccid1                    String?   @db.VarChar(22)
+  iccid2                    String?   @db.VarChar(22)
+  iso6709_coordinates       String?
+  trip_odometer             BigInt?
+  total_odometer            BigInt?
+  movement                  Boolean?
+  sleep_mode                Int?      @db.SmallInt
+  analog_input_1            Int?
+  analog_input_2            Int?
+  extended_analog_input_1   Int?
+  extended_analog_input_2   Int?
+  x_axis                    Int?
+  y_axis                    Int?
+  z_axis                    Int?
+  digital_input_1           Int?
+  digital_input_2           Int?
+  digital_input_3           Int?
+  digital_input_4           Int?
+  digital_output_1          Int?
+  digital_output_2          Int?
+  dout1_overcurrent         Int?
+  dout2_overcurrent         Int?
+  instant_movement          Int?
+
+  @@id([iot_imei, timestamp])
+  @@index([timestamp(sort: Desc)], map: "idx_tbl_iot_telemetry_data_timestamp")
+}

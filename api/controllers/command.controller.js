@@ -4,7 +4,7 @@ const deviceManager = require('../../services/deviceManagement.service');
 const commandController = {}
 
 commandController.executeCommand = async (req, res) => {
-    const { imei, command, booking_log_id } = req.body;
+    const { imei, command, metadata } = req.body;
 
     console.log('commandController.executeCommand', req.body);
 
@@ -19,7 +19,7 @@ commandController.executeCommand = async (req, res) => {
         return res.status(404).json({ error: 'Device not connected' });
     }
 
-    const success = await IOTService.sendCommand({ imei, command, booking_log_id });
+    const success = await IOTService.sendCommand({ imei, command, metadata });
     if (success) {
         console.log('commandController.executeCommand: Command sent');
         res.json({ success: true, message: 'Command sent' });

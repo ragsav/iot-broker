@@ -1,5 +1,3 @@
-const DeviceDao = require('../dao/device.dao');
-
 class DeviceManager {
     constructor() {
         this.deviceSockets = new Map(); // imei -> socket
@@ -29,21 +27,17 @@ class DeviceManager {
         // Only increment active connections if it's a new socket (handled by server, but tracking here for consistency if needed)
         // Since activeConnections is incremented on connection, we don't double count here ideally, 
         // but for this class let's just track authenticated devices via map size.
-
-        // Update DB status
-        DeviceDao.updateStatus(imei, 'online').catch(err => {
-            console.error('[DB] Failed to update device status to online:', err.message);
-        });
     }
 
     removeConnection(socket) {
         if (socket.imei) {
-            this.deviceSockets.delete(socket.imei);
-
-            // Update DB status
-            DeviceDao.updateStatus(socket.imei, 'offline').catch(err => {
-                console.error('[DB] Failed to update device status to offline:', err.message);
-            });
+            // Only remove if this socket is still the active one for this IMEI.
+            // When a device reconnects, the old socket's 'close' event fires after
+            // the new socket is already registered — without this guard, it would
+            // delete the new socket from the map.
+            if (this.deviceSockets.get(socket.imei) === socket) {
+                this.deviceSockets.delete(socket.imei);
+            }
         }
         this.socketMetadata.delete(socket);
     }
@@ -77,16 +71,21 @@ class DeviceManager {
             return false;
         }
 
-        // Note: We need to instantiate Encoder here or pass it in.
-        // Assuming Tft100Encoder is available classes
-        const Tft100Encoder = require('../protocols/tft100/encoder');
-        const encoder = new Tft100Encoder();
-        const packet = encoder.encodeCommand(command);
+        if (!socket.protocol || !socket.protocol.encoder) {
+            console.error('[COMMAND] No protocol adapter for device:', imei);
+            return false;
+        }
+
+        const packet = socket.protocol.encoder.encodeCommand(command);
 
         console.log('[COMMAND] Sending command to device:', { imei, command });
-        socket.write(packet);
-
-        return true;
+        try {
+            socket.write(packet);
+            return true;
+        } catch (error) {
+            console.error('[COMMAND] Error sending command:', error);
+            return false;
+        }
     }
 
     getStats() {

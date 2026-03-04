@@ -6,7 +6,7 @@ const setupSocket = require('./handlers/socket.handler');
 const startApiServer = require('./api');
 const CronJobScheduler = require('./jobs/cron.job');
 const db = require('./db');
-const deviceCache = require('./services/deviceCache.service');
+const deviceManager = require('./services/deviceManagement.service');
 
 // ============================================================================
 // SERVER SETUP
@@ -29,9 +29,6 @@ async function main() {
     // Test DB connection first
     await db.testConnection();
 
-    // Load devices into cache
-    await deviceCache.loadFromDB();
-
     // Start Cron Jobs
     CronJobScheduler.revertTimedOutIOTCommandsCronjob();
 
@@ -41,7 +38,7 @@ async function main() {
     // Start TCP Server
     server.listen(CONSTANTS.BROKER_PORT, () => {
         console.log('='.repeat(70));
-        console.log('  IOT-BROKER SERVER');
+        console.log('  TELTONIKA TFT100 GATEWAY SERVER');
         console.log('='.repeat(70));
         console.log(`  Port: ${CONSTANTS.BROKER_PORT}`);
         console.log(`  Max Connections: ${CONSTANTS.MAX_DEVICE_CONNECTIONS}`);
@@ -58,11 +55,25 @@ async function main() {
 function gracefulShutdown(signal) {
     console.log(`\n[SHUTDOWN] Received ${signal}, closing server...`);
 
-    server.close(() => {
-        console.log('[SHUTDOWN] Server closed');
+    // Destroy all active device sockets
+    for (const imei of deviceManager.getAllDeviceImies()) {
+        const socket = deviceManager.getSocket(imei);
+        if (socket) socket.destroy();
+    }
 
-        console.log('[SHUTDOWN] ✓ All connections closed');
-        process.exit(0);
+    server.close(() => {
+        console.log('[SHUTDOWN] TCP server closed');
+
+        // Close DB pool
+        db.pool.end()
+            .then(() => {
+                console.log('[SHUTDOWN] ✓ All connections and DB pool closed');
+                process.exit(0);
+            })
+            .catch((err) => {
+                console.error('[SHUTDOWN] Error closing DB pool:', err);
+                process.exit(1);
+            });
     });
 
     // Force exit after 10 seconds
@@ -76,4 +87,7 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start
-main();
+main().catch(err => {
+    console.error('[FATAL] Startup failed:', err);
+    process.exit(1);
+});
