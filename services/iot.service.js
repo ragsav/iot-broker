@@ -67,13 +67,14 @@ class IOTService {
 
       const socket = deviceManager.getSocket(imei);
 
-      // Mark any existing PENDING commands for this IMEI as FAILED (superseded)
+      // Mark any existing PENDING commands for this IMEI with the SAME command as FAILED (superseded)
+      // Different commands are allowed to coexist as PENDING concurrently
       try {
         await db.query(
           `UPDATE tbl_iot_command_logs 
            SET status = $1, updated_at = NOW(), completed_at = NOW() 
-           WHERE imei = $2 AND status = $3`,
-          [COMMAND_STATUS.FAILED, imei, COMMAND_STATUS.PENDING]
+           WHERE imei = $2 AND status = $3 AND command = $4`,
+          [COMMAND_STATUS.FAILED, imei, COMMAND_STATUS.PENDING, command]
         );
       } catch (error) { }
 
@@ -137,23 +138,30 @@ class IOTService {
       });
 
       const res = await db.query(
-        'SELECT * FROM tbl_iot_command_logs WHERE imei = $1 AND status = $2',
+        'SELECT * FROM tbl_iot_command_logs WHERE imei = $1 AND status = $2 ORDER BY created_at ASC',
         [imei, COMMAND_STATUS.PENDING]
       );
-      const iotCommandLogEntry = res.rows[0];
 
-      if (!iotCommandLogEntry) return;
+      if (res.rows.length === 0) return;
 
-      // Validate response matches the pending command (catches stale responses)
-      const validation = isValidCommandResponse(iotCommandLogEntry.command, responseStr);
-      if (!validation.valid) {
+      // Find the PENDING command whose expected response matches
+      let iotCommandLogEntry = null;
+      for (const row of res.rows) {
+        const validation = isValidCommandResponse(row.command, responseStr);
+        if (validation.valid) {
+          iotCommandLogEntry = row;
+          break;
+        }
+      }
+
+      // If no known command matched (all returned invalid), log and skip
+      if (!iotCommandLogEntry) {
         console.warn("IOTService:confirmCommandExecution:response_mismatch", {
           imei,
-          expected: validation.expected,
           received: responseStr,
-          pendingCommand: iotCommandLogEntry.command,
+          pendingCommands: res.rows.map(r => r.command),
         });
-        return; // Don't mark complete — stale response from previous command
+        return;
       }
 
       // Mark as COMPLETED with response

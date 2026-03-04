@@ -149,9 +149,10 @@ Because IoT ecosystems are distributed and run over unstable 2G/4G networks, the
 *   **Outcome**: Because the Gateway does not implement complex webhook retry queues (it assumes Host APIs are highly available), the Host App misses the webhook. However, Host Apps can periodically reconcile state manually by directly querying `tbl_iot_command_logs` via standard PostgreSQL queries or Prisma, searching for pending jobs in their own tables that align with `COMPLETED` commands in the Gateway database.
 
 #### Scenario C: Simultaneous/Spammy Commands
-*   **Trigger**: The Host App accidentally fires the "Start Vehicle" API 5 times in a single second.
-*   **Handling**: The Gateway is stateless regarding duplicate business logic. However, the `sendCommand` service routine specifically queries for ANY active `PENDING` commands on a given IMEI and marks them as `FAILED` (superseded) before adding the newest record. 
-*   **Outcome**: The physical device only executes the most recent instruction because the older commands' confirmation matching will intentionally skip the stale `FAILED` logs.
+*   **Trigger**: The Host App fires multiple commands to the same IMEI in rapid succession.
+*   **Handling — Same Command (Duplicates)**: If the same command string is fired 5 times (e.g., "Start Vehicle" x5), the `sendCommand` routine marks all older `PENDING` entries **with the same command string** as `FAILED` (superseded). Only the latest one stays `PENDING`. The device may execute duplicates, but confirmation matching only resolves the most recent entry.
+*   **Handling — Different Commands (Concurrent)**: If different command strings are fired (e.g., "Start Vehicle", then "getinfo"), each command gets its own independent `PENDING` entry. They coexist concurrently. When a response arrives, the Gateway matches it to the correct `PENDING` log by validating the response against each command's expected response pattern (defined in `IOT_COMMANDS`). For custom/raw commands not defined in `IOT_COMMANDS`, the Gateway falls back to oldest-first (FIFO) matching.
+*   **Outcome**: Duplicate commands are de-duplicated to prevent stale webhook noise, while genuinely different commands execute and confirm independently.
 
 #### Scenario D: Socket Drop Before Acknowledgement
 *   **Trigger**: The device receives the command, executes it physically (the vehicle unlocks), but drives into a tunnel and loses 4G before sending the TCP response back.
